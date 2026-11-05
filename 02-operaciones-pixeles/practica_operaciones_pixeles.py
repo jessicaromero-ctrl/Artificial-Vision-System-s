@@ -423,8 +423,8 @@ def main():
             f"|A−B| sin registro ×4   (MAE {mae(A, B):.2f})")
     mostrar(axs[1, 1], np.clip(d_post.astype(np.int32) * 20, 0, 255).astype(np.uint8),
             f"|A−B_reg| con registro ×20   (MAE {mae(A, Breg):.2f})")
-    hist_gris(axs[1, 2], gris(d_pre), "sin registro", "#e08400")
-    hist_gris(axs[1, 2], gris(d_post), "con registro", PURPURA)
+    hist_gris(axs[1, 2], d_pre, "sin registro", "#e08400")
+    hist_gris(axs[1, 2], d_post, "con registro", PURPURA)
     axs[1, 2].set_title("Histograma de |A−B| (eje Y log)", fontsize=8)
     axs[1, 2].legend(fontsize=7)
     axs[1, 2].tick_params(labelsize=7)
