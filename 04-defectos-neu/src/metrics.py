@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import matplotlib
+import numpy as np
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -15,17 +16,34 @@ from sklearn.metrics import (  # noqa: E402
 )
 
 
+def to_indices(values, classes):
+    """Convierte etiquetas (nombres de clase o índices) a índices enteros.
+
+    Permite que el baseline (nombres) y la CNN (índices) usen la misma evaluación.
+    """
+    class_to_idx = {c: i for i, c in enumerate(classes)}
+    return np.array(
+        [class_to_idx[v] if isinstance(v, str) else int(v) for v in values],
+        dtype=int,
+    )
+
+
 def evaluate_and_save(y_true, y_pred, classes, out_dir, name):
     """Calcula métricas, guarda JSON y matriz de confusión, y devuelve el diccionario."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    y_true = to_indices(y_true, classes)
+    y_pred = to_indices(y_pred, classes)
+    labels = list(range(len(classes)))
+
     acc = accuracy_score(y_true, y_pred)
-    macro_f1 = f1_score(y_true, y_pred, average="macro")
+    macro_f1 = f1_score(y_true, y_pred, labels=labels, average="macro", zero_division=0)
     report = classification_report(
-        y_true, y_pred, target_names=classes, output_dict=True, zero_division=0
+        y_true, y_pred, labels=labels, target_names=classes,
+        output_dict=True, zero_division=0,
     )
-    cm = confusion_matrix(y_true, y_pred, labels=range(len(classes)))
+    cm = confusion_matrix(y_true, y_pred, labels=labels)
 
     fig, ax = plt.subplots(figsize=(7, 6))
     im = ax.imshow(cm, cmap="Purples")
