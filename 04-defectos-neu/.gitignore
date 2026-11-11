@@ -1,0 +1,17 @@
+# Entorno virtual
+.venv/
+venv/
+
+# Datos y resultados pesados (no versionar)
+data/
+resultados/*.pt
+*.pt
+*.pth
+
+# Python
+__pycache__/
+*.pyc
+
+# Credenciales (nunca subir)
+kaggle.json
+.env
