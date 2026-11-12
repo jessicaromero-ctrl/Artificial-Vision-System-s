@@ -1,0 +1,17 @@
+{
+  "model": "cnn_resnet18",
+  "img_size": 128,
+  "parameters": 11179590,
+  "disk_size_mb": 42.72138500213623,
+  "rss_start_mb": 399.234375,
+  "rss_after_load_mb": 481.71875,
+  "latency": {
+    "n_timed": 360,
+    "mean_ms": 7.683081003940767,
+    "median_ms": 7.598583470098674,
+    "p95_ms": 8.26863608090207
+  },
+  "peak_rss_mb": 495.609375,
+  "platform": "Darwin arm64, Python 3.13.11",
+  "latency_definition": "extremo a extremo por imagen, CPU, incluye lectura y preprocesamiento"
+}

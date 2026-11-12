@@ -1,0 +1,17 @@
+{
+  "model": "baseline_lbp_svm",
+  "disk_size_mb": 0.17715930938720703,
+  "support_vectors": 352,
+  "feature_dim": 54,
+  "rss_start_mb": 174.84375,
+  "rss_after_load_mb": 174.9375,
+  "latency": {
+    "n_timed": 360,
+    "mean_ms": 11.077595700044185,
+    "median_ms": 10.630687000229955,
+    "p95_ms": 12.933808309026062
+  },
+  "peak_rss_mb": 181.15625,
+  "platform": "Darwin arm64, Python 3.13.11",
+  "latency_definition": "extremo a extremo por imagen, CPU, incluye lectura y preprocesamiento"
+}

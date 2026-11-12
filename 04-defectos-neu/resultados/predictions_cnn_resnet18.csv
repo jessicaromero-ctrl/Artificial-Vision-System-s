@@ -7,7 +7,7 @@ path,y_true,y_pred,y_true_name,y_pred_name
 /Users/macbookair/.cache/kagglehub/datasets/kaustubhdikshit/neu-surface-defect-database/versions/1/NEU-DET/train/images/pitted_surface/pitted_surface_134.jpg,3,3,pitted_surface,pitted_surface
 /Users/macbookair/.cache/kagglehub/datasets/kaustubhdikshit/neu-surface-defect-database/versions/1/NEU-DET/train/images/pitted_surface/pitted_surface_20.jpg,3,3,pitted_surface,pitted_surface
 /Users/macbookair/.cache/kagglehub/datasets/kaustubhdikshit/neu-surface-defect-database/versions/1/NEU-DET/train/images/inclusion/inclusion_80.jpg,1,1,inclusion,inclusion
-/Users/macbookair/.cache/kagglehub/datasets/kaustubhdikshit/neu-surface-defect-database/versions/1/NEU-DET/validation/images/inclusion/inclusion_283.jpg,1,5,inclusion,scratches
+/Users/macbookair/.cache/kagglehub/datasets/kaustubhdikshit/neu-surface-defect-database/versions/1/NEU-DET/validation/images/inclusion/inclusion_283.jpg,1,1,inclusion,inclusion
 /Users/macbookair/.cache/kagglehub/datasets/kaustubhdikshit/neu-surface-defect-database/versions/1/NEU-DET/train/images/scratches/scratches_132.jpg,5,5,scratches,scratches
 /Users/macbookair/.cache/kagglehub/datasets/kaustubhdikshit/neu-surface-defect-database/versions/1/NEU-DET/train/images/crazing/crazing_95.jpg,0,0,crazing,crazing
 /Users/macbookair/.cache/kagglehub/datasets/kaustubhdikshit/neu-surface-defect-database/versions/1/NEU-DET/train/images/pitted_surface/pitted_surface_183.jpg,3,3,pitted_surface,pitted_surface
@@ -154,7 +154,7 @@ path,y_true,y_pred,y_true_name,y_pred_name
 /Users/macbookair/.cache/kagglehub/datasets/kaustubhdikshit/neu-surface-defect-database/versions/1/NEU-DET/train/images/scratches/scratches_18.jpg,5,5,scratches,scratches
 /Users/macbookair/.cache/kagglehub/datasets/kaustubhdikshit/neu-surface-defect-database/versions/1/NEU-DET/train/images/scratches/scratches_106.jpg,5,5,scratches,scratches
 /Users/macbookair/.cache/kagglehub/datasets/kaustubhdikshit/neu-surface-defect-database/versions/1/NEU-DET/train/images/crazing/crazing_13.jpg,0,0,crazing,crazing
-/Users/macbookair/.cache/kagglehub/datasets/kaustubhdikshit/neu-surface-defect-database/versions/1/NEU-DET/validation/images/inclusion/inclusion_284.jpg,1,5,inclusion,scratches
+/Users/macbookair/.cache/kagglehub/datasets/kaustubhdikshit/neu-surface-defect-database/versions/1/NEU-DET/validation/images/inclusion/inclusion_284.jpg,1,1,inclusion,inclusion
 /Users/macbookair/.cache/kagglehub/datasets/kaustubhdikshit/neu-surface-defect-database/versions/1/NEU-DET/validation/images/rolled-in_scale/rolled-in_scale_249.jpg,4,4,rolled-in_scale,rolled-in_scale
 /Users/macbookair/.cache/kagglehub/datasets/kaustubhdikshit/neu-surface-defect-database/versions/1/NEU-DET/train/images/crazing/crazing_81.jpg,0,0,crazing,crazing
 /Users/macbookair/.cache/kagglehub/datasets/kaustubhdikshit/neu-surface-defect-database/versions/1/NEU-DET/train/images/rolled-in_scale/rolled-in_scale_205.jpg,4,4,rolled-in_scale,rolled-in_scale

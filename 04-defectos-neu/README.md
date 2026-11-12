@@ -1,16 +1,24 @@
 # Detección de defectos superficiales en acero (dataset NEU)
 
-Clasificación de seis tipos de defecto superficial en láminas de acero laminado. Se comparan un **baseline clásico de Procesamiento Digital de Imágenes (PDI)** con descriptores de textura LBP y un SVM, contra una **red neuronal convolucional (CNN)** ResNet-18 con transfer learning. La comparación se evalúa con intervalos de confianza y con una prueba estadística pareada.
+Clasificación de seis tipos de defecto superficial en láminas de acero laminado. Se comparan un **baseline clásico de Procesamiento Digital de Imágenes (PDI)** con descriptores de textura LBP y un SVM, contra una **red neuronal convolucional (CNN)** ResNet-18 con transfer learning. Todas las cifras provienen de corridas reales en un equipo local, con intervalos de confianza y pruebas estadísticas pareadas.
 
-**Resumen de hallazgos**
+## Resumen ejecutivo
 
-- Ambos modelos superan el 98 % de exactitud en el conjunto de prueba.
-- La CNN obtuvo una exactitud 0.83 puntos porcentuales mayor, pero la diferencia **no es estadísticamente significativa** (McNemar, p = 0.453).
-- El baseline clásico es competitivo con la CNN en esta tarea, con un costo computacional mucho menor.
+| Indicador | Baseline LBP + SVM | CNN ResNet-18 (224 px) |
+|---|---|---|
+| Exactitud en prueba (360 imágenes) | 0.9861 (355 aciertos) | 1.0000 (360 aciertos) |
+| Errores en prueba | 5 | 0 |
+| Latencia media por imagen (CPU) | 11.1 ms | 17.4 ms |
+| Pico de memoria residente | 181 MB | 522 MB |
+| Tamaño del modelo en disco | 0.18 MB | 42.7 MB |
+
+- La CNN acertó en las 5 imágenes que el baseline falló, y no falló en ninguna que el baseline acertara. La prueba de McNemar da p = 0.0625: la dirección favorece a la CNN, pero el tamaño de muestra no alcanza significancia al 5 %.
+- Los errores del baseline se concentran en **inclusion** y **scratches**, dos defectos con impacto directo en la calidad del producto.
+- La CNN paga más latencia y memoria por esa ventaja. La decisión de despliegue depende del costo de un falso negativo frente al costo del equipo y del tiempo de inspección.
 
 ## 1. Problemática
 
-En la industria siderúrgica, los defectos superficiales (grietas, inclusiones, manchas, picaduras, escamas y rayas) reducen la calidad del producto, generan retrabajo y pueden provocar reclamaciones de clientes. La inspección manual es lenta, subjetiva y difícil de sostener en líneas de alta velocidad. Un sistema automático que identifique el tipo de defecto permite corregir el proceso productivo y no solo descartar piezas.
+En la industria siderúrgica, los defectos superficiales (grietas, inclusiones, manchas, picaduras, escamas y rayas) reducen la calidad del producto, generan retrabajo y pueden provocar reclamaciones de clientes. La inspección manual es lenta, subjetiva y difícil de sostener en líneas de alta velocidad. Un sistema automático que identifique el tipo de defecto permite corregir el proceso productivo, y no solo descartar piezas.
 
 ## 2. Dataset
 
@@ -24,11 +32,10 @@ El dataset es originalmente de **detección de objetos**. Aquí se reutiliza par
 | Subconjunto | Imágenes | Uso |
 |---|---|---|
 | Original | 1,800 | Punto de partida |
-| Tras deduplicación | 1,799 | Una copia exacta eliminada (`patches_105.jpg`) |
+| Tras deduplicación | 1,799 | Se eliminó una copia exacta (`patches_105.jpg`) |
 | Entrenamiento | 1,439 | Ajuste de pesos y búsqueda de hiperparámetros |
-| Prueba | 360 | Evaluación final, sin intervenir en decisiones |
-
-En la CNN, el 10 % del entrenamiento (144 imágenes) se separa como validación interna para *early stopping*.
+| Validación interna | 144 (10 % del entrenamiento) | Criterio de parada y selección de época en la CNN |
+| Prueba | 360 | Evaluación final, sin intervenir en ninguna decisión |
 
 ## 3. Notación
 
@@ -38,10 +45,10 @@ En la CNN, el 10 % del entrenamiento (144 imágenes) se separa como validación 
 | $y_i$, $\hat{y}_i$ | Clase real y clase predicha de la imagen $i$ |
 | $K$ | Número de clases ($K = 6$) |
 | $\mathbf{1}[\cdot]$ | Función indicadora: vale 1 si la condición se cumple, 0 si no |
-| $\mathrm{TP}_c, \mathrm{FP}_c, \mathrm{FN}_c$ | Verdaderos positivos, falsos positivos y falsos negativos de la clase $c$ |
+| $\mathrm{TP}_c$, $\mathrm{FP}_c$, $\mathrm{FN}_c$ | Verdaderos positivos, falsos positivos y falsos negativos de la clase $c$ |
 | $\alpha$ | Nivel de significancia ($\alpha = 0.05$) |
 | $B$ | Número de remuestreos bootstrap ($B = 2000$) |
-| $n_{01}, n_{10}$ | Casos discordantes entre dos modelos (ver sección 6) |
+| $n_{01}$, $n_{10}$ | Casos discordantes entre dos modelos (ver sección 6) |
 | $\eta_t$ | Tasa de aprendizaje en la época $t$ |
 
 ## 4. Pipeline
@@ -83,9 +90,9 @@ $$
 \mathrm{LBP}_{P,R} = \sum_{p=0}^{P-1} s(g_p - g_c)\, 2^p, \qquad s(x) = \begin{cases} 1 & x \ge 0 \\ 0 & x < 0 \end{cases}
 $$
 
-Se usan patrones *uniformes* (como máximo dos transiciones 0/1 circulares), lo que da $P + 2$ valores posibles. El descriptor es el histograma de estos códigos. Se calcula a tres escalas, $(P, R) \in \{(8,1), (16,2), (24,3)\}$, y los histogramas se concatenan.
+Se usan patrones *uniformes* (como máximo dos transiciones 0/1 circulares), lo que da $P + 2$ valores posibles. El descriptor es el histograma de estos códigos. Se calcula a tres escalas, $(P, R) \in \{(8,1), (16,2), (24,3)\}$, y los histogramas se concatenan en un vector de 54 dimensiones.
 
-**SVM con kernel RBF.** El clasificador usa la función de decisión
+**SVM con kernel RBF.** La función de decisión es
 
 $$
 f(\mathbf{x}) = \text{sign}\!\left(\sum_{i} \alpha_i y_i K(\mathbf{x}_i, \mathbf{x}) + b\right), \qquad K(\mathbf{x}, \mathbf{x}') = \exp\!\left(-\gamma \lVert \mathbf{x} - \mathbf{x}' \rVert^2\right)
@@ -109,7 +116,7 @@ $$
 \eta_t = \frac{\eta_{\max}}{2}\left(1 + \cos\frac{\pi t}{T}\right)
 $$
 
-**Early stopping.** Se detiene el entrenamiento si la exactitud de validación no mejora durante 4 épocas consecutivas, y se restauran los pesos de la mejor época.
+**Early stopping sobre la pérdida de validación.** Se guarda la época con menor pérdida de validación. El entrenamiento se detiene si esa pérdida no mejora durante 4 épocas consecutivas, o al llegar al máximo de épocas. Se usa la pérdida y no la exactitud porque la exactitud de validación llegó a 1.000 desde la época 1, y no permitía distinguir entre épocas posteriores.
 
 ### 5.3 Métricas
 
@@ -129,11 +136,11 @@ $$
 \mathrm{F1}_{\text{macro}} = \frac{1}{K} \sum_{c=1}^{K} F1_c
 $$
 
-Como cada clase tiene aproximadamente 60 imágenes en prueba, la exactitud y el F1 macro son casi iguales. Esto es consistente con un conjunto balanceado.
+Con unas 60 imágenes por clase en prueba, la exactitud y el F1 macro son casi iguales, lo cual es esperable en un conjunto balanceado.
 
 ## 6. Pruebas estadísticas
 
-Un resultado como "98.6 %" es una estimación puntual. Con 360 imágenes, cambiar 3 predicciones mueve la exactitud casi un punto. Por eso se reportan intervalos y una prueba pareada.
+Una cifra puntual, como "100 %", no dice qué tan segura es. Con 360 imágenes, cambiar 5 predicciones mueve la exactitud alrededor de 1.4 puntos. Por eso se reportan intervalos y una prueba pareada.
 
 ### 6.1 Intervalo de confianza por bootstrap
 
@@ -143,43 +150,47 @@ $$
 \text{IC}_{95} = \left[\theta^*_{(\alpha/2)},\ \theta^*_{(1-\alpha/2)}\right]
 $$
 
-donde $\theta^*_{(q)}$ es el percentil $q$ de la distribución bootstrap. Con $B = 2000$ y $\alpha = 0.05$.
+donde $\theta^*_{(q)}$ es el percentil $q$ de la distribución bootstrap, con $B = 2000$ y $\alpha = 0.05$.
+
+**Limitación:** cuando todas las predicciones son correctas, el bootstrap produce un intervalo de ancho cero. Eso no significa error nulo. Para casos saturados se usa el intervalo exacto de Clopper-Pearson:
+
+$$
+\text{IC}_{95} = \left[\left(\tfrac{\alpha}{2}\right)^{1/n},\ 1\right] \quad \text{cuando } \mathrm{Acc} = 1
+$$
+
+Para la CNN, con 360 de 360 aciertos, este intervalo es $[0.9898, 1.0000]$. Fue calculado con la fórmula y aún no está implementado en `src/stats.py`.
 
 ### 6.2 Comparación pareada: prueba de McNemar
 
 Ambos modelos se evalúan sobre las mismas imágenes, así que sus errores están emparejados. Se definen:
 
-- $n_{01}$: casos en los que el baseline acierta y la CNN falla.
-- $n_{10}$: casos en los que el baseline falla y la CNN acierta.
+- $n_{01}$: casos en que el baseline acierta y la CNN falla.
+- $n_{10}$: casos en que el baseline falla y la CNN acierta.
 
-Bajo la hipótesis nula $H_0$ (ambos modelos tienen la misma tasa de error), cada caso discordante tiene probabilidad $0.5$ de favorecer a cualquiera de los dos. La prueba exacta es
+Bajo la hipótesis nula $H_0$ (ambos modelos tienen la misma tasa de error), cada caso discordante favorece a cualquiera de los dos con probabilidad $0.5$. La prueba exacta es
 
 $$
 p = \min\!\left(1,\ 2 \sum_{k=0}^{\min(n_{01}, n_{10})} \binom{n_{01} + n_{10}}{k} \left(\tfrac{1}{2}\right)^{n_{01} + n_{10}}\right)
 $$
 
-Si $p < \alpha$, se rechaza $H_0$ y la diferencia es significativa.
+Si $p < \alpha$, se rechaza $H_0$. Con $n_{01} + n_{10} = 5$ y todos los casos en la misma dirección, el mínimo posible es $p = 0.0625$, así que esta comparación no puede alcanzar significancia al 5 % con este tamaño de muestra.
 
 ### 6.3 Intervalo de la diferencia de exactitud
-
-Para medir cuánto mejora un modelo sobre otro, se calcula la diferencia pareada
 
 $$
 \Delta = \mathrm{Acc}_{\text{CNN}} - \mathrm{Acc}_{\text{baseline}}
 $$
 
-y su intervalo bootstrap, remuestreando los mismos índices para ambos modelos. Si el intervalo contiene 0, la diferencia no es concluyente.
+Se estima con remuestreo bootstrap de los mismos índices para ambos modelos. Con pocos casos discordantes, este intervalo es menos confiable que McNemar, por lo que la conclusión formal se basa en la prueba exacta.
 
 ## 7. Verificación de fuga de datos
 
 La fuga ocurre cuando información de prueba llega al entrenamiento. Por ejemplo, si la misma imagen aparece en ambos lados, el modelo "reconoce" la respuesta y las métricas quedan infladas.
 
-Se aplican dos controles:
+1. **Deduplicación previa al particionado:** se eliminó una copia exacta (`patches_101.jpg` y `patches_105.jpg`), identificada por hash MD5.
+2. **Verificación posterior:** `check_leakage` recalcula el hash de cada imagen de prueba y confirma que ninguna aparece en entrenamiento. En todas las corridas el resultado fue **0 coincidencias**.
 
-1. **Deduplicación previa al particionado:** se eliminó 1 copia exacta (`patches_101.jpg` y `patches_105.jpg`). Se identificó por hash MD5.
-2. **Verificación posterior:** `check_leakage` recalcula el hash de cada imagen de prueba y confirma que ninguno aparece en entrenamiento. El resultado en ambas ejecuciones fue **0 coincidencias**.
-
-Las pruebas de McNemar y los IC bootstrap dan la magnitud de la incertidumbre. La verificación de fuga garantiza que esa incertidumbre no esté inflada por duplicados.
+Los intervalos y la prueba de McNemar cuantifican la incertidumbre del muestreo. La verificación de fuga garantiza que esa incertidumbre no esté inflada por duplicados.
 
 ## 8. Estructura del proyecto
 
@@ -189,6 +200,7 @@ Las pruebas de McNemar y los IC bootstrap dan la magnitud de la incertidumbre. L
 ├── requirements.txt
 ├── run_experiment.py        # punto de entrada: baseline o CNN
 ├── compare_models.py        # McNemar e IC de la diferencia
+├── benchmark.py             # latencia, memoria y tamaño en disco
 ├── src/
 │   ├── data.py              # descubrimiento, deduplicación, particionado, fuga
 │   ├── stats.py             # bootstrap, McNemar, diferencia pareada
@@ -196,7 +208,7 @@ Las pruebas de McNemar y los IC bootstrap dan la magnitud de la incertidumbre. L
 │   ├── baseline.py          # LBP + SVM
 │   ├── cnn.py               # ResNet-18 con fine-tuning
 │   └── download.py          # descarga desde Kaggle
-└── resultados/              # métricas, predicciones, comparación (pesos .pt excluidos)
+└── resultados/              # métricas, predicciones y comparaciones (pesos .pt y .joblib excluidos)
 ```
 
 ## 9. Ejecución
@@ -207,134 +219,236 @@ Desde `04-defectos-neu`, con el entorno virtual activo:
 pip install -r requirements.txt
 python src/download.py
 python run_experiment.py --data-dir "<ruta_impresa_por_download>" --model baseline
-python run_experiment.py --data-dir "<ruta_impresa_por_download>" --model cnn --epochs 8 --img-size 128
+python run_experiment.py --data-dir "<ruta_impresa_por_download>" --model cnn --epochs 15 --img-size 224
 python compare_models.py --res-dir resultados --a baseline_lbp_svm --b cnn_resnet18
+python benchmark.py --data-dir "<ruta_impresa_por_download>" --model baseline
+python benchmark.py --data-dir "<ruta_impresa_por_download>" --model cnn --img-size 224
 ```
 
 ## 10. Resultados
 
-### 10.1 Configuración
+### 10.1 Configuración final
 
-- Partición: 80/20 estratificada, semilla 42. Entrenamiento 1,439; prueba 360.
-- Baseline: LBP multiescala + SVM RBF. Mejores hiperparámetros elegidos por validación cruzada.
-- CNN: ResNet-18, 8 épocas, 128 px, AdamW con $\eta_{\max} = 3 \times 10^{-4}$ y programación coseno.
+- Partición: 80/20 estratificada, semilla 42. Entrenamiento 1,439 (de ellos 144 para validación interna); prueba 360.
+- Baseline: LBP multiescala + SVM RBF, con hiperparámetros elegidos por validación cruzada.
+- CNN: ResNet-18, resolución 224 px, máximo 15 épocas, AdamW con $\eta_{\max} = 3 \times 10^{-4}$, programación coseno, early stopping sobre la pérdida de validación.
 
 ### 10.2 Métricas en el conjunto de prueba
 
 | Modelo | Exactitud | IC 95 % (exactitud) | F1 macro | IC 95 % (F1 macro) | Aciertos |
 |---|---|---|---|---|---|
 | Baseline LBP + SVM | 0.9861 | [0.9722, 0.9972] | 0.9861 | [0.9720, 0.9970] | 355 / 360 |
-| CNN ResNet-18 | 0.9944 | [0.9861, 1.0000] | 0.9944 | [0.9854, 1.0000] | 358 / 360 |
-
-Los intervalos se traslapan, pero la CNN tiene un intervalo más alto y más estrecho en el límite inferior.
+| CNN ResNet-18 (224 px) | 1.0000 | [1.0000, 1.0000] (bootstrap)<br>[0.9898, 1.0000] (Clopper-Pearson) | 1.0000 | [1.0000, 1.0000] | 360 / 360 |
 
 ### 10.3 Comparación pareada
 
 | Concepto | Valor |
 |---|---|
-| Baseline acierta y CNN falla ($n_{01}$) | 2 |
+| Baseline acierta y CNN falla ($n_{01}$) | 0 |
 | Baseline falla y CNN acierta ($n_{10}$) | 5 |
-| Casos discordantes totales | 7 |
-| Valor p (McNemar exacto) | 0.453 |
-| $\Delta = \mathrm{Acc}_{\text{CNN}} - \mathrm{Acc}_{\text{baseline}}$ | +0.0083 (+0.83 puntos) |
-| IC 95 % de $\Delta$ (bootstrap, $B = 2000$) | [−0.0056, +0.0222] |
+| Valor p (McNemar exacto) | 0.0625 |
+| $\Delta = \mathrm{Acc}_{\text{CNN}} - \mathrm{Acc}_{\text{baseline}}$ | +0.0139 (+1.39 puntos, 5 imágenes) |
+| IC 95 % de $\Delta$ (bootstrap, $B = 2000$) | [+0.0028, +0.0278] |
 
-**Lectura:** el valor p es mayor que 0.05 y el IC de $\Delta$ incluye 0. No hay evidencia estadística de que la CNN sea mejor que el baseline en este conjunto de prueba. Solo 7 de 360 casos cambian de resultado entre modelos, lo que da poca potencia para detectar diferencias pequeñas.
+**Lectura:** la dirección de la diferencia es favorable a la CNN en todas las discordancias. Pero el valor p de 0.0625 indica que, con este tamaño de prueba, no hay evidencia estadística suficiente para afirmar superioridad. El intervalo bootstrap excluye cero, pero se considera menos confiable con tan pocos casos discordantes.
 
-Ausencia de significancia no significa equivalencia demostrada. Lo que sí se puede afirmar es que la ventaja aparente de la CNN (3 imágenes) está dentro del margen de variación de esta prueba.
+### 10.4 Visualización de métricas
 
-### 10.4 Entrenamiento de la CNN
+Exactitud por modelo:
 
-| Época | Train loss | Train acc | Val loss | Val acc |
-|---|---|---|---|---|
-| 01 | 0.2891 | 0.894 | 0.0353 | 0.979 |
-| 02 | 0.1314 | 0.954 | 0.0506 | 0.979 |
-| 03 | 0.1288 | 0.956 | 0.0427 | 0.979 |
-| 04 | 0.0713 | 0.978 | 0.0556 | 0.986 |
-| 05 | 0.0344 | 0.988 | 0.0171 | 0.993 |
-| 06 | 0.0252 | 0.995 | 0.0015 | 1.000 |
-| 07 | 0.0214 | 0.992 | 0.0013 | 1.000 |
-| 08 | 0.0071 | 0.999 | 0.0013 | 1.000 |
+```mermaid
+xychart-beta
+    title "Exactitud en prueba (360 imágenes)"
+    x-axis ["Baseline LBP+SVM", "CNN ResNet-18 224 px"]
+    y-axis "Exactitud" 0.97 --> 1.00
+    bar [0.9861, 1.0000]
+```
 
-La validación alcanzó 1.000 en la época 6, así que los pesos guardados corresponden a esa época. El early stopping no se activó porque la exactitud de validación nunca dejó de ser máxima. Por lo tanto, el conjunto de validación de 144 imágenes resultó fácil y no discrimina entre épocas posteriores.
+Recall del baseline por clase (la CNN obtuvo recall 1.000 en todas las clases):
 
-### 10.5 Matrices de confusión
+```mermaid
+xychart-beta
+    title "Recall del baseline por clase"
+    x-axis ["crazing", "inclusion", "patches", "pitted", "rolled-in", "scratches"]
+    y-axis "Recall" 0.94 --> 1.00
+    bar [1.000, 0.967, 1.000, 1.000, 1.000, 0.950]
+```
 
-Baseline LBP + SVM:
+### 10.5 Desempeño por clase
+
+| Clase | Baseline F1 | Baseline recall | Errores del baseline (aprox.) | CNN F1 | CNN recall |
+|---|---|---|---|---|---|
+| crazing | 1.000 | 1.000 | 0 | 1.000 | 1.000 |
+| inclusion | 0.959 | 0.967 | 2 | 1.000 | 1.000 |
+| patches | 1.000 | 1.000 | 0 | 1.000 | 1.000 |
+| pitted_surface | 1.000 | 1.000 | 0 | 1.000 | 1.000 |
+| rolled-in_scale | 1.000 | 1.000 | 0 | 1.000 | 1.000 |
+| scratches | 0.958 | 0.950 | 3 | 1.000 | 1.000 |
+
+Los errores por clase son aproximados, con unas 60 imágenes por clase en prueba. Cada imagen equivale a cerca de 1.7 puntos de recall, así que estas diferencias por clase son descriptivas y no tienen prueba propia.
+
+Matrices de confusión:
 
 ![Matriz de confusión del baseline](resultados/confusion_baseline_lbp_svm.png)
 
-CNN ResNet-18:
-
 ![Matriz de confusión de la CNN](resultados/confusion_cnn_resnet18.png)
 
-El detalle por clase (precisión, recall y F1) está en `resultados/metrics_baseline_lbp_svm.json` y `resultados/metrics_cnn_resnet18.json`. Las predicciones por imagen están en `resultados/predictions_*.csv`.
+### 10.6 Entrenamiento de la CNN final
 
-## 11. Importancia de los resultados
+| Época | Train loss | Train acc | Val loss | Val acc |
+|---|---|---|---|---|
+| 01 | 0.2316 | 0.928 | 0.0129 | 1.000 |
+| 02 | 0.1272 | 0.961 | 0.0096 | 0.993 |
+| 03 | 0.0761 | 0.977 | 0.0020 | 1.000 |
+| 04 | 0.0707 | 0.978 | 0.0032 | 1.000 |
+| 05 | 0.0392 | 0.986 | 0.0028 | 1.000 |
+| 06 | 0.0338 | 0.992 | 0.0074 | 1.000 |
+| 07 | 0.0258 | 0.994 | 0.0018 | 1.000 |
+| 08 | 0.0073 | 0.998 | 0.0008 | 1.000 |
+| 09 | 0.0166 | 0.994 | 0.0014 | 1.000 |
+| 10 | 0.0086 | 0.997 | 0.0005 | 1.000 |
+| 11 | 0.0046 | 1.000 | 0.0002 | 1.000 |
+| 12 | 0.0055 | 0.998 | 0.0002 | 1.000 |
+| 13 | 0.0023 | 1.000 | 0.0002 | 1.000 |
+| 14 | 0.0027 | 1.000 | 0.0002 | 1.000 |
+| 15 | 0.0091 | 0.998 | 0.0002 | 1.000 |
 
-- **Para la inspección industrial:** ambos enfoques distinguen los seis defectos con error menor al 2 %. Eso permite automatizar la clasificación en la línea.
-- **Para la decisión de diseño:** el baseline clásico logra un desempeño equivalente, con un modelo de 0.18 MB que es fácil de explicar. En latencia no fue más costoso que la CNN de 128 px en esta medición, así que la ventaja de costo no puede atribuirse al baseline. La CNN solo se justificaría si mejora de forma significativa en un conjunto de prueba más grande o más difícil.
-- **Sobre las rayas:** la CNN clasificó correctamente las 60 imágenes de *scratches* en prueba, mientras el baseline falló en 3. Es la fuente de casi toda la diferencia, pero es un patrón en una clase, no una superioridad general demostrada.
-- **Para la metodología:** la diferencia entre modelos es de 3 imágenes. Reportar solo la cifra puntual habría sugerido una ventaja que las pruebas no respaldan.
+**Mejor época (pérdida de validación): 14.** A partir de la época 11, la pérdida de validación se mantiene en 0.0002, lo que indica convergencia. El entrenamiento llegó al máximo de 15 épocas sin activar la parada.
 
-## 12. Observaciones metodológicas y técnicas
+El conjunto de validación ya no discrimina entre épocas posteriores. Por eso la prueba final es la única medida útil de desempeño, y su tamaño limita lo que puede concluirse.
 
-- **Prevención de fuga de datos:** deduplicación previa y verificación automática. Ambas se ejecutan en cada corrida.
-- **Conjunto de prueba aislado:** no interviene en la búsqueda de hiperparámetros, en la selección de épocas ni en el early stopping.
-- **Pruebas estadísticas obligatorias:** todo resultado experimental se reporta con IC. La comparación entre modelos se hace con McNemar sobre casos pareados, no comparando cifras puntuales.
-- **Reproducibilidad:** partición estratificada con semilla fija, predicciones por imagen guardadas y comandos documentados.
-- **Consistencia en la evaluación:** las etiquetas textuales (baseline) y los índices (CNN) pasan por la misma conversión antes de calcular métricas.
-- **Reutilización del dataset de detección:** la clase se toma de la carpeta y las bounding boxes no se usan. Es válido para clasificación, pero debe documentarse.
+### 10.7 Corrida preliminar a 128 px
 
-## 13. Costo computacional y consideraciones de despliegue
+Una corrida previa de 8 épocas a 128 px, con el criterio anterior (exactitud de validación), dio exactitud 0.9944 (358 de 360) e IC 95 % [0.9861, 1.0000]. Esa corrida quedó en el historial de Git como configuración preliminar. No es comparable directamente con la final, porque cambió la resolución y el criterio de parada al mismo tiempo.
+
+## 11. Costo computacional y consideraciones de despliegue
 
 Mediciones en un MacBook Air con Apple Silicon (arm64), Python 3.13, en CPU. La latencia es extremo a extremo por imagen: lectura del archivo, preprocesamiento e inferencia, sobre las 360 imágenes de prueba, tras 10 llamadas de calentamiento.
 
-| Métrica | Baseline LBP + SVM | CNN ResNet-18 (128 px) |
+| Métrica | Baseline LBP + SVM | CNN ResNet-18 (128 px, preliminar) | CNN ResNet-18 (224 px, final) |
+|---|---|---|---|
+| Entrada del modelo | Vector de 54 dimensiones | 128 × 128 × 3 | 224 × 224 × 3 |
+| Parámetros | 352 vectores de soporte | 11,179,590 | 11,179,590 |
+| Tamaño en disco | 0.18 MB | 42.7 MB | 42.7 MB |
+| Memoria residente tras cargar | 175 MB | 482 MB | 484 MB |
+| Pico de memoria residente | 181 MB | 496 MB | 522 MB |
+| Latencia media | 11.1 ms | 7.7 ms | 17.4 ms |
+| Latencia mediana | 10.6 ms | 7.6 ms | 17.3 ms |
+| Latencia p95 | 12.9 ms | 8.3 ms | 19.9 ms |
+
+Latencia media por configuración:
+
+```mermaid
+xychart-beta
+    title "Latencia media por imagen (ms, CPU, extremo a extremo)"
+    x-axis ["Baseline", "CNN 128 px", "CNN 224 px"]
+    y-axis "ms" 0 --> 20
+    bar [11.1, 7.7, 17.4]
+```
+
+Pico de memoria residente:
+
+```mermaid
+xychart-beta
+    title "Pico de memoria residente (MB)"
+    x-axis ["Baseline", "CNN 128 px", "CNN 224 px"]
+    y-axis "MB" 0 --> 600
+    bar [181, 496, 522]
+```
+
+**Lectura de los resultados:**
+
+- **Latencia.** La CNN a 224 px es 2.3 veces más lenta que a 128 px, y 57 % más lenta que el baseline. El aumento a 224 px multiplica por 3.06 el número de píxeles, pero la latencia crece menos porque una parte del tiempo es fija (lectura de archivo y preprocesamiento).
+- **Memoria.** El modelo del SVM ocupa 0.18 MB, pero el proceso completo usa 175 MB por las bibliotecas de scikit-learn. La CNN necesita unos 400 MB solo para PyTorch, y la carga de los pesos añade unos 85 MB. El framework pesa más que el modelo.
+- **Capacidad aproximada.** Con 17.4 ms por imagen, este equipo procesa unas 57 imágenes por segundo en la configuración final, y el baseline unas 90. Estas cifras son por una imagen a la vez; un equipo industrial puede tener otro rendimiento.
+
+**Para despliegue.** Ambos modelos son viables en equipos con CPU moderna. La decisión depende de la velocidad de la línea, del hardware disponible y del costo de un defecto no detectado. Estas cifras describen un solo equipo y no sustituyen una medición en la línea o en el hardware de destino.
+
+## 12. Análisis para producción siderúrgica
+
+### 12.1 Qué implica cada parámetro para una planta
+
+| Parámetro | Impacto en el modelo | Utilidad en la siderúrgica |
 |---|---|---|
-| Entrada del modelo | Vector de 54 dimensiones (histogramas LBP) | Imagen de 128 × 128 × 3 |
-| Parámetros | 352 vectores de soporte | 11,179,590 |
-| Tamaño del modelo en disco | 0.18 MB | 42.7 MB |
-| Memoria residente antes de cargar el modelo | 175 MB | 399 MB |
-| Memoria residente tras cargar el modelo | 175 MB | 482 MB |
-| Pico de memoria residente | 181 MB | 496 MB |
-| Latencia media | 11.1 ms | 7.7 ms |
-| Latencia mediana | 10.6 ms | 7.6 ms |
-| Latencia p95 | 12.9 ms | 8.3 ms |
+| **Resolución (224 px frente a 128 px)** | Mayor detalle en rayas finas e inclusiones pequeñas, a costa de más cómputo | Define la cámara necesaria: cuántos píxeles se requieren por milímetro para ver el defecto más pequeño que importa |
+| **Criterio de parada (pérdida de validación)** | Evita modelos subentrenados y sobreajustados | Un modelo con mejor confianza calibrada genera alarmas más confiables y menos falsas alarmas |
+| **Máximo de épocas** | Limita el tiempo de entrenamiento | Permite reentrenar en horas cuando cambie el acero, el espesor o la iluminación |
+| **Aumentación de datos** | Robustez frente a orientación e iluminación | En planta, la luz cambia por turno y por el desgaste de las lámparas |
+| **Semilla y partición estratificada** | Resultados reproducibles y comparaciones justas | Cualquier cifra puede auditarse y reproducirse con el mismo dato |
+| **Intervalos y McNemar** | Cuantifican la incertidumbre de la comparación | Evitan invertir en un sistema más caro por una mejora que no es estadísticamente real |
 
-**Lectura de los resultados.**
+### 12.2 Costo de los errores
 
-- **Memoria.** El SVM ocupa 0.18 MB, pero el proceso completo ya usa 175 MB por las bibliotecas de scikit-learn y scikit-image. En la CNN, la carga de los pesos añade unos 83 MB sobre los 399 MB que ya usa PyTorch. La diferencia de memoria la define en buena medida el framework, no solo el archivo del modelo.
-- **Latencia.** En esta medición la CNN a 128 px fue más rápida que el baseline de extremo a extremo. El costo del baseline está en calcular LBP a tres escalas sobre imágenes de 200 px en Python. Por eso no se puede afirmar que el baseline sea más barato en cómputo: en CPU, con entradas pequeñas, no lo fue.
-- **Configuración final.** La corrida de 224 px tiene 3.06 veces más píxeles que la de 128 px, así que su latencia será mayor. Este efecto debe medirse con la configuración final, no estimarse.
+Los errores no tienen el mismo costo:
 
-**Para despliegue.** Ambos modelos son viables en equipos modernos con CPU. La decisión depende de la pila de software (PyTorch frente a scikit-learn), del hardware disponible y de la tasa de inspección requerida. Estas cifras describen un solo equipo; no sustituyen una medición en la línea o el hardware de destino.
+- **Falso negativo** (un defecto que pasa): la pieza llega al cliente. Puede generar reclamaciones, devoluciones o fallas en servicio. Es el error más costoso.
+- **Falso positivo** (una pieza buena marcada como defectuosa): se desecha o se reinspecciona. Cuesta material y tiempo, pero no genera riesgo al cliente.
+
+Por eso el indicador operativo clave es el **recall por clase de defecto crítico**, sobre todo para inclusion y scratches, que son justo las clases donde el baseline falló. La CNN obtuvo recall 1.000 en ambas en esta prueba, pero el tamaño de la prueba impide asegurar que ese nivel se mantenga en producción.
+
+### 12.3 Flujo propuesto en línea
+
+```mermaid
+flowchart TD
+    A[Imagen de la línea] --> B{Confianza del modelo}
+    B -->|Alta y clase no crítica| C[Registro automático]
+    B -->|Baja o clase crítica| D[Revisión humana]
+    D --> E[Retroalimentación al conjunto de datos]
+    C --> F[Tendencias de defectos por turno]
+    E --> F
+```
+
+La revisión humana se concentra en los casos de baja confianza y en las clases críticas. Así se reduce la carga del operador sin dejar pasar los defectos más costosos. Las decisiones de umbral deben calibrarse con datos de planta, no con este conjunto de laboratorio.
+
+### 12.4 Ventajas del enfoque
+
+- **Dos opciones con costos distintos.** El baseline es ligero y explicable. La CNN ofrece mayor capacidad de generalización a costa de memoria y latencia.
+- **Decisiones con evidencia.** Las pruebas estadísticas justifican o descartan la inversión en un modelo más complejo.
+- **Reproducibilidad.** Cada resultado es auditable, algo indispensable en un sistema de control de calidad.
+
+### 12.5 Condiciones antes de implementar en planta
+
+1. Validar con imágenes de la línea real, con polvo, vibración, reflejos y cambios de iluminación por turno.
+2. Ampliar el conjunto de prueba con piezas de otros lotes y otros espesores, para que la tasa de error pueda estimarse con precisión.
+3. Calibrar los umbrales de confianza según el costo de un falso negativo.
+4. Medir latencia en el equipo de destino y verificar que sostenga la velocidad de la línea.
+5. Monitorear el desempeño en el tiempo, porque la distribución de defectos y de iluminación cambia.
+
+## 13. Observaciones metodológicas y técnicas
+
+- **Prevención de fuga de datos:** deduplicación previa al particionado y verificación automática en cada corrida.
+- **Conjunto de prueba aislado:** no interviene en la búsqueda de hiperparámetros, en la selección de época ni en el criterio de parada.
+- **Pruebas estadísticas obligatorias:** todo resultado se reporta con intervalo de confianza. La comparación entre modelos se hace con McNemar sobre casos pareados.
+- **Cambios entre corridas:** la configuración final cambió la resolución y el criterio de parada respecto a la preliminar. Por eso no se atribuye la mejora a uno solo de ellos.
+- **Reproducibilidad:** partición estratificada con semilla fija, predicciones por imagen guardadas y comandos documentados. La corrida del baseline se repitió y reprodujo exactamente las mismas métricas.
+- **Reutilización del dataset de detección:** la clase se toma de la carpeta y las bounding boxes no se usan. Es válido para clasificación, pero debe documentarse.
 
 ## 14. Limitaciones
 
-- **Una sola partición de prueba:** los IC cuantifican la variabilidad del muestreo de las 360 imágenes, no la variabilidad del entrenamiento. Con una sola semilla no se mide la variación entre corridas.
-- **Poca potencia estadística:** con 7 casos discordantes, la prueba de McNemar solo detecta diferencias grandes. Una diferencia pequeña podría existir sin ser detectada.
-- **CNN en configuración reducida:** 8 épocas y 128 px por limitaciones de tiempo en CPU. Una configuración mayor podría cambiar la comparación.
-- **Validación fácil:** la validación interna llega a 1.000 de exactitud, por lo que no discrimina bien entre configuraciones.
-- **Dominio controlado:** las imágenes son de laboratorio, con iluminación y encuadre uniformes. El desempeño en líneas reales puede ser menor.
-- **Baseline con histograma global:** el descriptor LBP pierde la posición espacial del defecto.
-- **Costo medido en un solo equipo:** las cifras de latencia y memoria corresponden a un MacBook Air en CPU, no a hardware industrial. La CNN final (224 px) aún no está medida.
+- **Prueba pequeña y saturada:** con 360 imágenes, la CNN no tuvo errores, y el intervalo exacto solo acota la tasa de error por encima de aproximadamente 1 %. Para estimar una tasa de error de producción se necesitan miles de piezas.
+- **Poca potencia de McNemar:** con 5 casos discordantes, la prueba no puede alcanzar significancia al 5 % en esta dirección. La ausencia de significancia no demuestra equivalencia.
+- **Una sola semilla:** los intervalos cuantifican el muestreo de la prueba, no la variabilidad del entrenamiento. Falta repetir con varias semillas.
+- **Dominio controlado:** imágenes de laboratorio, con iluminación y encuadre uniformes.
+- **Baseline con histograma global:** LBP pierde la posición espacial del defecto dentro de la pieza.
 - **Clasificación, no localización:** el sistema indica qué defecto hay, pero no dónde.
+- **Costo medido en un solo equipo:** las cifras de latencia y memoria corresponden a un MacBook Air en CPU, no a hardware industrial.
+- **Validación sin discriminación:** el conjunto de validación llegó a exactitud 1.000 desde la época 1.
 
 ## 15. Insights centrales
 
-- Los descriptores de textura bien elegidos son una referencia muy fuerte para inspección superficial en entornos controlados.
-- Un modelo de aprendizaje profundo debe compararse contra un baseline clásico bien ajustado y con una prueba pareada, no contra cifras puntuales.
+- Un descriptor de textura bien elegido es una referencia muy fuerte para inspección superficial en condiciones controladas. En este dataset, el baseline clásico acertó 98.6 % de las veces.
+- La CNN con transfer learning elimina los errores del baseline en esta prueba, pero con 5 casos de diferencia el resultado no alcanza significancia estadística.
+- La ventaja de la CNN tiene costo: más latencia (17.4 ms frente a 11.1 ms) y más memoria (522 MB frente a 181 MB) en este equipo.
+- Para producción, la métrica decisiva es el recall de los defectos críticos en condiciones de planta, no la exactitud en laboratorio.
 - La calidad del pipeline de datos (deduplicación, particionado, aislamiento de la prueba, verificación de fuga) afecta la validez de los resultados tanto como el modelo.
-- Con conjuntos de prueba pequeños, una diferencia de un par de imágenes no es evidencia de superioridad.
 
 ## 16. Aplicaciones futuras
 
 - **Localización de defectos:** entrenar un detector de objetos con las bounding boxes del dataset original.
 - **Validación en producción:** probar con imágenes de líneas reales y aplicar adaptación de dominio.
-- **Evaluación más robusta:** validación cruzada repetida y varias semillas, con IC sobre la variabilidad de entrenamiento.
-- **Inspección en tiempo real:** integrar con cámaras industriales y medir latencia.
-- **Retroalimentación de proceso:** analizar tendencias de defectos para ajustar la laminación.
+- **Evaluación más robusta:** validación cruzada repetida y varias semillas, con intervalos sobre la variabilidad del entrenamiento.
+- **Inspección en tiempo real:** integrar con cámaras industriales y medir la latencia en el hardware de la línea.
+- **Retroalimentación de proceso:** analizar tendencias de defectos por turno, horno o lote para ajustar la laminación.
 
 ## 17. Glosario
 
@@ -342,13 +456,14 @@ Mediciones en un MacBook Air con Apple Silicon (arm64), Python 3.13, en CPU. La 
 - **LBP (Local Binary Patterns):** descriptor de textura basado en comparaciones entre un píxel y sus vecinos.
 - **SVM (Support Vector Machine):** clasificador que maximiza el margen entre clases.
 - **Kernel RBF:** función que permite fronteras de decisión no lineales.
+- **Vector de soporte:** muestra de entrenamiento que define la frontera de un SVM.
 - **CNN:** red que aprende filtros para extraer características espaciales.
 - **ResNet-18:** arquitectura convolucional con conexiones residuales y 18 capas con pesos.
 - **Transfer learning:** reutilizar un modelo preentrenado para una tarea nueva.
 - **Fine-tuning:** ajustar los pesos de un modelo preentrenado con datos del nuevo dominio.
 - **Aumentación de datos:** generar variantes de las imágenes (rotaciones, volteos, cambios de brillo).
 - **Entropía cruzada:** función de pérdida que penaliza la probabilidad baja asignada a la clase correcta.
-- **Early stopping:** detener el entrenamiento cuando la validación deja de mejorar.
+- **Early stopping:** detener el entrenamiento cuando el criterio de validación deja de mejorar.
 - **Validación cruzada:** evaluar dividiendo los datos de entrenamiento en particiones rotativas.
 - **Particionado estratificado:** dividir manteniendo la proporción de clases.
 - **Fuga de datos (data leakage):** información de prueba que llega al entrenamiento y sobreestima el desempeño.
@@ -361,11 +476,16 @@ Mediciones en un MacBook Air con Apple Silicon (arm64), Python 3.13, en CPU. La 
 - **Matriz de confusión:** tabla que cruza clase real y clase predicha.
 - **Intervalo de confianza (IC):** rango que, con un nivel dado (95 %), contiene el valor verdadero con esa frecuencia en repeticiones del muestreo.
 - **Bootstrap:** método de remuestreo con reemplazo para estimar la variabilidad de una métrica.
+- **Clopper-Pearson:** intervalo exacto para proporciones, útil cuando la proporción es 0 o 1.
 - **Hipótesis nula ($H_0$):** supuesto de que no hay diferencia entre los modelos.
 - **Valor p:** probabilidad de observar un resultado tan extremo como el obtenido si $H_0$ fuera verdadera.
 - **Prueba de McNemar:** prueba pareada que compara dos clasificadores usando los casos en que discrepan.
 - **Casos discordantes:** imágenes en las que dos modelos aciertan y fallan de forma distinta.
 - **Potencia estadística:** probabilidad de detectar una diferencia real cuando existe.
+- **Recall de un defecto crítico:** proporción de defectos de una clase crítica que el sistema detecta. Es el indicador más importante en producción.
+- **Falso negativo / falso positivo:** defecto no detectado / pieza buena marcada como defectuosa.
+- **RSS (memoria residente):** memoria física que el proceso ocupa en ese momento.
+- **Latencia p95:** tiempo por debajo del cual se encuentra el 95 % de las mediciones.
 - **Sobreajuste (overfitting):** el modelo memoriza el entrenamiento y generaliza mal.
 
 ## 18. Estado del proyecto
@@ -373,13 +493,13 @@ Mediciones en un MacBook Air con Apple Silicon (arm64), Python 3.13, en CPU. La 
 - [x] Descarga y verificación del dataset.
 - [x] Deduplicación, particionado estratificado y verificación de fuga.
 - [x] Baseline LBP + SVM con IC bootstrap.
-- [x] CNN ResNet-18 con transfer learning (8 épocas, 128 px).
+- [x] CNN ResNet-18 con transfer learning (224 px, criterio de pérdida de validación).
 - [x] Prueba de McNemar e IC de la diferencia.
-- [ ] Corrida final de la CNN con configuración mayor (15 épocas, 224 px).
-- [x] Medición de latencia, memoria pico y tamaño de ambos modelos (128 px).
-- [ ] Medición de latencia de la CNN final a 224 px.
-- [ ] Análisis de errores por clase.
-- [ ] Varias semillas para medir la variabilidad de entrenamiento.
+- [x] Medición de latencia, memoria pico y tamaño de ambos modelos.
+- [x] Análisis de errores por clase.
+- [ ] Intervalo exacto (Clopper-Pearson) implementado en `src/stats.py`.
+- [ ] Varias semillas para medir la variabilidad del entrenamiento.
+- [ ] Validación con imágenes de línea real.
 
 ## 19. Uso de inteligencia artificial
 

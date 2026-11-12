@@ -137,7 +137,7 @@ def run_cnn(
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
     history = []
-    best_val_acc, best_state, bad_epochs = -1.0, None, 0
+    best_val_loss, best_epoch, best_state, bad_epochs = float("inf"), 0, None, 0
     for epoch in range(1, epochs + 1):
         tr_loss, tr_acc = run_epoch(model, train_loader, criterion, optimizer, device)
         va_loss, va_acc = run_epoch(model, val_loader, criterion, None, device)
@@ -149,14 +149,17 @@ def run_cnn(
         print(f"Época {epoch:02d} | train loss {tr_loss:.4f} acc {tr_acc:.3f} "
               f"| val loss {va_loss:.4f} acc {va_acc:.3f}")
 
-        if va_acc > best_val_acc:
-            best_val_acc, best_state, bad_epochs = va_acc, copy.deepcopy(model.state_dict()), 0
+        if va_loss < best_val_loss:
+            best_val_loss, best_epoch = va_loss, epoch
+            best_state, bad_epochs = copy.deepcopy(model.state_dict()), 0
         else:
             bad_epochs += 1
             if bad_epochs >= patience:
                 print(f"Early stopping en la época {epoch}.")
                 break
 
+    print(f"Mejor época según pérdida de validación: {best_epoch} "
+          f"(val loss {best_val_loss:.4f})")
     model.load_state_dict(best_state)
     torch.save(best_state, out_dir / "best_resnet18.pt")
     (out_dir / "history_cnn.json").write_text(json.dumps(history, indent=2), encoding="utf-8")
@@ -166,6 +169,11 @@ def run_cnn(
         y_true, y_pred, classes, out_dir, name="cnn_resnet18",
         paths=[path for path, _ in test_samples],
     )
-    metrics["best_val_acc"] = best_val_acc
+    metrics["best_val_loss"] = float(best_val_loss)
+    metrics["best_epoch"] = int(best_epoch)
+    metrics["early_stopping_monitor"] = "val_loss"
+    (out_dir / "metrics_cnn_resnet18.json").write_text(
+        json.dumps(metrics, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
     metrics["device"] = str(device)
     return metrics

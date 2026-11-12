@@ -71,5 +71,9 @@
       "f1-score": 0.986110146537954,
       "support": 360.0
     }
+  },
+  "best_params": {
+    "svc__C": 10,
+    "svc__gamma": "scale"
   }
 }

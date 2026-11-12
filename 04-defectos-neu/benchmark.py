@@ -150,7 +150,8 @@ def main():
     result["platform"] = f"{platform.system()} {platform.machine()}, Python {platform.python_version()}"
     result["latency_definition"] = "extremo a extremo por imagen, CPU, incluye lectura y preprocesamiento"
 
-    out = args.res_dir / f"benchmark_{result['model']}.json"
+    suffix = f"_{args.img_size}px" if args.model == "cnn" else ""
+    out = args.res_dir / f"benchmark_{result['model']}{suffix}.json"
     out.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
     print(json.dumps(result, indent=2, ensure_ascii=False))
     print(f"\nGuardado en: {out}")
