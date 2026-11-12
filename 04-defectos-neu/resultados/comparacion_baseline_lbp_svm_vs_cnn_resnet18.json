@@ -1,0 +1,17 @@
+{
+  "model_a": "baseline_lbp_svm",
+  "model_b": "cnn_resnet18",
+  "n_test": 360,
+  "mcnemar": {
+    "a_correct_b_wrong": 2,
+    "a_wrong_b_correct": 5,
+    "p_value": 0.453125
+  },
+  "accuracy_difference": {
+    "diff_estimate": -0.008333333333333304,
+    "ci_low": -0.022222222222222254,
+    "ci_high": 0.005555555555555536,
+    "confidence": 0.95,
+    "n_boot": 2000
+  }
+}

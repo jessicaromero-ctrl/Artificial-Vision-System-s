@@ -162,7 +162,10 @@ def run_cnn(
     (out_dir / "history_cnn.json").write_text(json.dumps(history, indent=2), encoding="utf-8")
 
     y_true, y_pred = predict(model, test_loader, device)
-    metrics = evaluate_and_save(y_true, y_pred, classes, out_dir, name="cnn_resnet18")
+    metrics = evaluate_and_save(
+        y_true, y_pred, classes, out_dir, name="cnn_resnet18",
+        paths=[path for path, _ in test_samples],
+    )
     metrics["best_val_acc"] = best_val_acc
     metrics["device"] = str(device)
     return metrics

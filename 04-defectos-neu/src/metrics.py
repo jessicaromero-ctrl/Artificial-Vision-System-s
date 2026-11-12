@@ -1,5 +1,6 @@
-"""Métricas comunes y gráfica de matriz de confusión para ambos modelos."""
+"""Métricas, intervalos de confianza y registro de predicciones para ambos modelos."""
 
+import csv
 import json
 from pathlib import Path
 
@@ -15,12 +16,11 @@ from sklearn.metrics import (  # noqa: E402
     f1_score,
 )
 
+from stats import bootstrap_ci  # noqa: E402
+
 
 def to_indices(values, classes):
-    """Convierte etiquetas (nombres de clase o índices) a índices enteros.
-
-    Permite que el baseline (nombres) y la CNN (índices) usen la misma evaluación.
-    """
+    """Convierte etiquetas (nombres de clase o índices) a índices enteros."""
     class_to_idx = {c: i for i, c in enumerate(classes)}
     return np.array(
         [class_to_idx[v] if isinstance(v, str) else int(v) for v in values],
@@ -28,8 +28,9 @@ def to_indices(values, classes):
     )
 
 
-def evaluate_and_save(y_true, y_pred, classes, out_dir, name):
-    """Calcula métricas, guarda JSON y matriz de confusión, y devuelve el diccionario."""
+def evaluate_and_save(y_true, y_pred, classes, out_dir, name, paths=None,
+                      n_boot=2000, seed=42):
+    """Calcula métricas con IC 95 %, guarda JSON, predicciones y matriz de confusión."""
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -44,6 +45,10 @@ def evaluate_and_save(y_true, y_pred, classes, out_dir, name):
         output_dict=True, zero_division=0,
     )
     cm = confusion_matrix(y_true, y_pred, labels=labels)
+
+    ci_acc = bootstrap_ci(y_true, y_pred, metric="accuracy", n_boot=n_boot, seed=seed)
+    ci_f1 = bootstrap_ci(y_true, y_pred, metric="macro_f1", labels=labels,
+                         n_boot=n_boot, seed=seed)
 
     fig, ax = plt.subplots(figsize=(7, 6))
     im = ax.imshow(cm, cmap="Purples")
@@ -66,10 +71,19 @@ def evaluate_and_save(y_true, y_pred, classes, out_dir, name):
     fig.savefig(out_dir / f"confusion_{name}.png", dpi=150)
     plt.close(fig)
 
+    if paths is not None:
+        with open(out_dir / f"predictions_{name}.csv", "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["path", "y_true", "y_pred", "y_true_name", "y_pred_name"])
+            for p, t, q in zip(paths, y_true, y_pred):
+                writer.writerow([str(p), int(t), int(q), classes[t], classes[q]])
+
     metrics = {
         "model": name,
+        "n_test": int(len(y_true)),
         "accuracy": float(acc),
         "macro_f1": float(macro_f1),
+        "confidence_intervals": {"accuracy": ci_acc, "macro_f1": ci_f1},
         "per_class": report,
     }
     (out_dir / f"metrics_{name}.json").write_text(

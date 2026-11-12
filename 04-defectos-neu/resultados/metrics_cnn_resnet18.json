@@ -1,0 +1,75 @@
+{
+  "model": "cnn_resnet18",
+  "n_test": 360,
+  "accuracy": 0.9944444444444445,
+  "macro_f1": 0.9944429008057795,
+  "confidence_intervals": {
+    "accuracy": {
+      "metric": "accuracy",
+      "estimate": 0.9944444444444445,
+      "ci_low": 0.9861111111111112,
+      "ci_high": 1.0,
+      "confidence": 0.95,
+      "n_boot": 2000
+    },
+    "macro_f1": {
+      "metric": "macro_f1",
+      "estimate": 0.9944429008057795,
+      "ci_low": 0.9853876302662179,
+      "ci_high": 1.0,
+      "confidence": 0.95,
+      "n_boot": 2000
+    }
+  },
+  "per_class": {
+    "crazing": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 60.0
+    },
+    "inclusion": {
+      "precision": 1.0,
+      "recall": 0.9666666666666667,
+      "f1-score": 0.9830508474576272,
+      "support": 60.0
+    },
+    "patches": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 60.0
+    },
+    "pitted_surface": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 60.0
+    },
+    "rolled-in_scale": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 60.0
+    },
+    "scratches": {
+      "precision": 0.967741935483871,
+      "recall": 1.0,
+      "f1-score": 0.9836065573770492,
+      "support": 60.0
+    },
+    "accuracy": 0.9944444444444445,
+    "macro avg": {
+      "precision": 0.9946236559139785,
+      "recall": 0.9944444444444445,
+      "f1-score": 0.9944429008057795,
+      "support": 360.0
+    },
+    "weighted avg": {
+      "precision": 0.9946236559139785,
+      "recall": 0.9944444444444445,
+      "f1-score": 0.9944429008057795,
+      "support": 360.0
+    }
+  }
+}

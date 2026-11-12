@@ -67,3 +67,12 @@ def stratified_split(samples, test_size=0.2, seed=42):
         paths, labels, test_size=test_size, stratify=labels, random_state=seed
     )
     return list(zip(tr_p, tr_l)), list(zip(te_p, te_l))
+
+
+def check_leakage(train_samples, test_samples):
+    """Devuelve las rutas de prueba cuyo contenido (hash MD5) también aparece en entrenamiento.
+
+    Lista vacía significa que no hay fuga de datos entre particiones.
+    """
+    train_hashes = {hashlib.md5(p.read_bytes()).hexdigest() for p, _ in train_samples}
+    return [p for p, _ in test_samples if hashlib.md5(p.read_bytes()).hexdigest() in train_hashes]

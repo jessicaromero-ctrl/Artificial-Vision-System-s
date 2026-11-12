@@ -52,6 +52,9 @@ def run_baseline(train_samples, test_samples, classes, out_dir, seed=42):
     search.fit(X_train, y_train)
 
     y_pred = search.predict(X_test)
-    metrics = evaluate_and_save(y_test, y_pred, classes, out_dir, name="baseline_lbp_svm")
+    metrics = evaluate_and_save(
+        y_test, y_pred, classes, out_dir, name="baseline_lbp_svm",
+        paths=[path for path, _ in test_samples],
+    )
     metrics["best_params"] = search.best_params_
     return metrics

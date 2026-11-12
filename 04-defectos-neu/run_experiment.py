@@ -1,8 +1,8 @@
 """Punto de entrada: ejecuta el baseline clásico o la CNN sobre el dataset NEU.
 
 Ejemplos:
-    python run_experiment.py --data-dir data/NEU --model baseline
-    python run_experiment.py --data-dir data/NEU --model cnn --epochs 15 --img-size 224
+    python run_experiment.py --data-dir <ruta> --model baseline
+    python run_experiment.py --data-dir <ruta> --model cnn --epochs 15 --img-size 224
 """
 
 import argparse
@@ -14,7 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from baseline import run_baseline  # noqa: E402
 from cnn import run_cnn  # noqa: E402
-from data import deduplicate, discover_samples, stratified_split  # noqa: E402
+from data import check_leakage, deduplicate, discover_samples, stratified_split  # noqa: E402
 
 
 def parse_args():
@@ -47,6 +47,13 @@ def main():
     train_samples, test_samples = stratified_split(samples, args.test_size, args.seed)
     print(f"Entrenamiento: {len(train_samples)} | Prueba: {len(test_samples)}")
 
+    leaked = check_leakage(train_samples, test_samples)
+    if leaked:
+        raise SystemExit(
+            f"Fuga de datos detectada: {len(leaked)} imágenes de prueba aparecen en entrenamiento."
+        )
+    print("Fuga de datos entre particiones: 0 (verificado por hash MD5)")
+
     if args.model == "baseline":
         metrics = run_baseline(train_samples, test_samples, classes, args.out_dir, args.seed)
     else:
@@ -57,7 +64,16 @@ def main():
         )
 
     print("\nResultados en prueba:")
-    print(json.dumps({k: metrics[k] for k in ("model", "accuracy", "macro_f1")}, indent=2))
+    summary = {k: metrics[k] for k in ("model", "accuracy", "macro_f1")}
+    summary["ci95_accuracy"] = [
+        round(metrics["confidence_intervals"]["accuracy"]["ci_low"], 4),
+        round(metrics["confidence_intervals"]["accuracy"]["ci_high"], 4),
+    ]
+    summary["ci95_macro_f1"] = [
+        round(metrics["confidence_intervals"]["macro_f1"]["ci_low"], 4),
+        round(metrics["confidence_intervals"]["macro_f1"]["ci_high"], 4),
+    ]
+    print(json.dumps(summary, indent=2))
 
 
 if __name__ == "__main__":
