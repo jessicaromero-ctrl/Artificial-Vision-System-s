@@ -273,7 +273,7 @@ El detalle por clase (precisión, recall y F1) está en `resultados/metrics_base
 ## 11. Importancia de los resultados
 
 - **Para la inspección industrial:** ambos enfoques distinguen los seis defectos con error menor al 2 %. Eso permite automatizar la clasificación en la línea.
-- **Para la decisión de diseño:** el baseline clásico logra un desempeño equivalente con un modelo mucho más ligero, explicable y barato de operar. La CNN solo se justificaría si mejora de forma significativa en un conjunto de prueba más grande o más difícil.
+- **Para la decisión de diseño:** el baseline clásico logra un desempeño equivalente, con un modelo de 0.18 MB que es fácil de explicar. En latencia no fue más costoso que la CNN de 128 px en esta medición, así que la ventaja de costo no puede atribuirse al baseline. La CNN solo se justificaría si mejora de forma significativa en un conjunto de prueba más grande o más difícil.
 - **Sobre las rayas:** la CNN clasificó correctamente las 60 imágenes de *scratches* en prueba, mientras el baseline falló en 3. Es la fuente de casi toda la diferencia, pero es un patrón en una clase, no una superioridad general demostrada.
 - **Para la metodología:** la diferencia entre modelos es de 3 imágenes. Reportar solo la cifra puntual habría sugerido una ventaja que las pruebas no respaldan.
 
@@ -288,17 +288,27 @@ El detalle por clase (precisión, recall y F1) está en `resultados/metrics_base
 
 ## 13. Costo computacional y consideraciones de despliegue
 
-| Aspecto | Baseline LBP + SVM | CNN ResNet-18 |
+Mediciones en un MacBook Air con Apple Silicon (arm64), Python 3.13, en CPU. La latencia es extremo a extremo por imagen: lectura del archivo, preprocesamiento e inferencia, sobre las 360 imágenes de prueba, tras 10 llamadas de calentamiento.
+
+| Métrica | Baseline LBP + SVM | CNN ResNet-18 (128 px) |
 |---|---|---|
-| Representación de entrada | Vector de 54 dimensiones (10 + 18 + 26 bins de los tres histogramas LBP) | Imagen completa en 128 px (prueba) o 224 px (corrida final) |
-| Parámetros del modelo | Vectores de soporte del SVM (cantidad pendiente de medir) | Aprox. 11.7 millones |
-| Tamaño en disco | Pendiente de medir | 44.7 MB (archivo de pesos de PyTorch) |
-| Memoria de inferencia | Mínima: vector de características y SVM | Mayor: activaciones intermedias de la red |
-| Memoria de entrenamiento | Pequeña | Alta: gradientes y estados de AdamW (dos por parámetro) |
+| Entrada del modelo | Vector de 54 dimensiones (histogramas LBP) | Imagen de 128 × 128 × 3 |
+| Parámetros | 352 vectores de soporte | 11,179,590 |
+| Tamaño del modelo en disco | 0.18 MB | 42.7 MB |
+| Memoria residente antes de cargar el modelo | 175 MB | 399 MB |
+| Memoria residente tras cargar el modelo | 175 MB | 482 MB |
+| Pico de memoria residente | 181 MB | 496 MB |
+| Latencia media | 11.1 ms | 7.7 ms |
+| Latencia mediana | 10.6 ms | 7.6 ms |
+| Latencia p95 | 12.9 ms | 8.3 ms |
 
-**Lectura para despliegue industrial.** Ambos modelos alcanzan exactitudes equivalentes en este conjunto de prueba. El baseline requiere mucho menos memoria y cómputo, lo que facilita ejecutarlo en controladores o equipos de borde. La CNN necesita GPU o un acelerador para mantener una tasa de inspección alta.
+**Lectura de los resultados.**
 
-**Pendiente.** Medir en el mismo equipo la latencia por imagen y la memoria pico de inferencia de ambos modelos, así como el tamaño serializado del SVM. Sin estas cifras, la comparación de costo es cualitativa.
+- **Memoria.** El SVM ocupa 0.18 MB, pero el proceso completo ya usa 175 MB por las bibliotecas de scikit-learn y scikit-image. En la CNN, la carga de los pesos añade unos 83 MB sobre los 399 MB que ya usa PyTorch. La diferencia de memoria la define en buena medida el framework, no solo el archivo del modelo.
+- **Latencia.** En esta medición la CNN a 128 px fue más rápida que el baseline de extremo a extremo. El costo del baseline está en calcular LBP a tres escalas sobre imágenes de 200 px en Python. Por eso no se puede afirmar que el baseline sea más barato en cómputo: en CPU, con entradas pequeñas, no lo fue.
+- **Configuración final.** La corrida de 224 px tiene 3.06 veces más píxeles que la de 128 px, así que su latencia será mayor. Este efecto debe medirse con la configuración final, no estimarse.
+
+**Para despliegue.** Ambos modelos son viables en equipos modernos con CPU. La decisión depende de la pila de software (PyTorch frente a scikit-learn), del hardware disponible y de la tasa de inspección requerida. Estas cifras describen un solo equipo; no sustituyen una medición en la línea o el hardware de destino.
 
 ## 14. Limitaciones
 
@@ -308,7 +318,7 @@ El detalle por clase (precisión, recall y F1) está en `resultados/metrics_base
 - **Validación fácil:** la validación interna llega a 1.000 de exactitud, por lo que no discrimina bien entre configuraciones.
 - **Dominio controlado:** las imágenes son de laboratorio, con iluminación y encuadre uniformes. El desempeño en líneas reales puede ser menor.
 - **Baseline con histograma global:** el descriptor LBP pierde la posición espacial del defecto.
-- **Costo no medido:** latencia y memoria de inferencia aún no se han medido en el equipo de despliegue.
+- **Costo medido en un solo equipo:** las cifras de latencia y memoria corresponden a un MacBook Air en CPU, no a hardware industrial. La CNN final (224 px) aún no está medida.
 - **Clasificación, no localización:** el sistema indica qué defecto hay, pero no dónde.
 
 ## 15. Insights centrales
@@ -366,7 +376,8 @@ El detalle por clase (precisión, recall y F1) está en `resultados/metrics_base
 - [x] CNN ResNet-18 con transfer learning (8 épocas, 128 px).
 - [x] Prueba de McNemar e IC de la diferencia.
 - [ ] Corrida final de la CNN con configuración mayor (15 épocas, 224 px).
-- [ ] Medición de latencia, memoria pico y tamaño del SVM.
+- [x] Medición de latencia, memoria pico y tamaño de ambos modelos (128 px).
+- [ ] Medición de latencia de la CNN final a 224 px.
 - [ ] Análisis de errores por clase.
 - [ ] Varias semillas para medir la variabilidad de entrenamiento.
 

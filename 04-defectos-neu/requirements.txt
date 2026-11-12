@@ -8,3 +8,4 @@ torch>=2.1
 torchvision>=0.16
 kagglehub>=0.3
 scipy>=1.10
+psutil>=5.9

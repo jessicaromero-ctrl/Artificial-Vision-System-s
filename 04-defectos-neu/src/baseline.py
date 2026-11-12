@@ -3,6 +3,10 @@
 Sirve como referencia para comparar contra la CNN con transfer learning.
 """
 
+import json
+from pathlib import Path
+
+import joblib
 import numpy as np
 from PIL import Image
 from skimage.feature import local_binary_pattern
@@ -57,4 +61,9 @@ def run_baseline(train_samples, test_samples, classes, out_dir, seed=42):
         paths=[path for path, _ in test_samples],
     )
     metrics["best_params"] = search.best_params_
+    out = Path(out_dir)
+    joblib.dump(search.best_estimator_, out / "best_svm_baseline.joblib")
+    (out / "metrics_baseline_lbp_svm.json").write_text(
+        json.dumps(metrics, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
     return metrics
