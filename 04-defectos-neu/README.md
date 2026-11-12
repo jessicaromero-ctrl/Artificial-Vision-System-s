@@ -173,7 +173,7 @@ $$
 \text{IC}_{95} = \left[\left(\tfrac{\alpha}{2}\right)^{1/n},\ 1\right] \quad \text{cuando } \mathrm{Acc} = 1
 $$
 
-Para la CNN, con 360 de 360 aciertos, este intervalo es $[0.9898, 1.0000]$. Fue calculado con la fórmula y aún no está implementado en `src/stats.py`.
+Para la CNN, con 360 de 360 aciertos, este intervalo es $[0.9898, 1.0000]$. Está implementado en `src/stats.py` y se guarda en `resultados/metrics_*.json`.
 
 ### 6.2 Comparación pareada: prueba de McNemar
 
@@ -336,6 +336,27 @@ El conjunto de validación ya no discrimina entre épocas posteriores. Por eso l
 
 Una corrida previa de 8 épocas a 128 px, con el criterio anterior (exactitud de validación), dio exactitud 0.9944 (358 de 360) e IC 95 % [0.9861, 1.0000]. Esa corrida quedó en el historial de Git como configuración preliminar. No es comparable directamente con la final, porque cambió la resolución y el criterio de parada al mismo tiempo.
 
+### 10.8 Variabilidad entre semillas de entrenamiento
+
+Tres corridas de la CNN final con la misma partición de prueba (semilla 42) y distinta semilla de entrenamiento.
+
+| Semilla | Épocas ejecutadas | Mejor época | Pérdida de validación mínima | Exactitud en prueba | Log-loss en prueba |
+|---|---|---|---|---|---|
+| 42 | 15 | 14 | 0.0002 | 1.0000 | 0.00053 |
+| 1 | 15 | 14 | 0.0003 | 1.0000 | 0.00163 |
+| 2 | 13 (parada anticipada) | 9 | 0.0012 | 1.0000 | 0.00014 |
+
+**Resumen.** Exactitud: media 1.0000, desviación estándar 0. Log-loss en prueba: media 0.00077, desviación estándar 0.00078, rango [0.00014, 0.00163]. El IC 95 % de la media por distribución t, con $n = 3$, es $[-0.00116, 0.00270]$.
+
+**Lectura:**
+
+- **La exactitud no discrimina entre semillas.** Las tres corridas aciertan 360 de 360, así que la variabilidad solo se ve en la confianza de las predicciones.
+- **La log-loss sí varía.** Cambia más de diez veces entre semillas (de 0.00014 a 0.00163), aunque todas las cifras son muy pequeñas. Los tres modelos clasifican la prueba correctamente, pero con grados de confianza distintos.
+- **El IC de la media no es válido en su límite inferior.** Una pérdida no puede ser negativa. El intervalo t con tres corridas tiene poca precisión y su límite inferior carece de sentido. Para documentarlo, se reporta el rango. Con más semillas, el intervalo se calcularía sobre el logaritmo de la log-loss.
+- **La semilla 2 tiene la menor log-loss, pero se eligió por su pérdida de validación, no por la prueba.** La prueba se usa solo para reportar, nunca para seleccionar.
+
+**Implicación para producción.** Si una planta reentrena el modelo, los umbrales de confianza para generar alarmas deben recalibrarse con datos propios. Un umbral fijado con un modelo no se transfiere automáticamente a otro, aunque tengan la misma exactitud.
+
 ## 11. Costo computacional y consideraciones de despliegue
 
 Mediciones en un MacBook Air con Apple Silicon (arm64), Python 3.13, en CPU. La latencia es extremo a extremo por imagen: lectura del archivo, preprocesamiento e inferencia, sobre las 360 imágenes de prueba, tras 10 llamadas de calentamiento.
@@ -444,7 +465,7 @@ La revisión humana se concentra en los casos de baja confianza y en las clases 
 - **Estadísticas no trasladables:** los intervalos y el valor p describen este conjunto de prueba. Una planta con mayor volumen tiene distribuciones de defectos y condiciones distintas, así que su tasa de error debe estimarse con sus propios datos.
 - **Prueba pequeña y saturada:** con 360 imágenes, la CNN no tuvo errores, y el intervalo exacto solo acota la tasa de error por encima de aproximadamente 1 %. Para estimar una tasa de error de producción se necesitan miles de piezas.
 - **Poca potencia de McNemar:** con 5 casos discordantes, la prueba no puede alcanzar significancia al 5 % en esta dirección. La ausencia de significancia no demuestra equivalencia.
-- **Una sola semilla:** los intervalos cuantifican el muestreo de la prueba, no la variabilidad del entrenamiento. Falta repetir con varias semillas.
+- **Tres semillas:** la variabilidad se estima con tres corridas. Con tan pocas, el intervalo de la media es poco preciso y puede incluir valores imposibles para una pérdida no negativa (ver sección 10.8).
 - **Dominio controlado:** imágenes de laboratorio, con iluminación y encuadre uniformes.
 - **Baseline con histograma global:** LBP pierde la posición espacial del defecto dentro de la pieza.
 - **Clasificación, no localización:** el sistema indica qué defecto hay, pero no dónde.
@@ -514,9 +535,8 @@ La revisión humana se concentra en los casos de baja confianza y en las clases 
 - [x] Prueba de McNemar e IC de la diferencia.
 - [x] Medición de latencia, memoria pico y tamaño de ambos modelos.
 - [x] Análisis de errores por clase.
-- [ ] Intervalo exacto (Clopper-Pearson) implementado en `src/stats.py`.
-- [ ] Varias semillas para medir la variabilidad del entrenamiento.
-- [ ] Validación con imágenes de línea real.
+- [x] Intervalo exacto (Clopper-Pearson) implementado en `src/stats.py` y guardado en las métricas.
+- [x] Variabilidad entre tres semillas de entrenamiento (42, 1 y 2).
 
 ## 19. Uso de inteligencia artificial
 
