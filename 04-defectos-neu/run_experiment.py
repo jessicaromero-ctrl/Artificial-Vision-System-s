@@ -24,6 +24,8 @@ def parse_args():
     parser.add_argument("--out-dir", type=Path, default=Path("resultados"))
     parser.add_argument("--test-size", type=float, default=0.2)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--train-seed", type=int, default=None,
+                        help="Semilla del entrenamiento de la CNN; la partición sigue con --seed.")
     parser.add_argument("--epochs", type=int, default=15)
     parser.add_argument("--img-size", type=int, default=224)
     parser.add_argument("--batch-size", type=int, default=32)
@@ -60,7 +62,8 @@ def main():
         metrics = run_cnn(
             train_samples, test_samples, classes, args.out_dir,
             epochs=args.epochs, img_size=args.img_size,
-            batch_size=args.batch_size, lr=args.lr, seed=args.seed,
+            batch_size=args.batch_size, lr=args.lr,
+            seed=args.train_seed if args.train_seed is not None else args.seed,
         )
 
     print("\nResultados en prueba:")

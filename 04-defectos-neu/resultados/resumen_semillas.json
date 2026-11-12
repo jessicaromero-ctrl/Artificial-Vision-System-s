@@ -1,0 +1,42 @@
+{
+  "runs": [
+    {
+      "archivo": "resultados/seed_1/metrics_cnn_resnet18.json",
+      "accuracy": 1.0,
+      "macro_f1": 1.0,
+      "best_epoch": 14
+    },
+    {
+      "archivo": "resultados/seed_2/metrics_cnn_resnet18.json",
+      "accuracy": 1.0,
+      "macro_f1": 1.0,
+      "best_epoch": 9
+    },
+    {
+      "archivo": "resultados/seed_42/metrics_cnn_resnet18.json",
+      "accuracy": 1.0,
+      "macro_f1": 1.0,
+      "best_epoch": 14
+    }
+  ],
+  "accuracy": {
+    "n": 3,
+    "mean": 1.0,
+    "sd": 0.0,
+    "min": 1.0,
+    "max": 1.0,
+    "ci_low": 1.0,
+    "ci_high": 1.0,
+    "confidence": 0.95
+  },
+  "macro_f1": {
+    "n": 3,
+    "mean": 1.0,
+    "sd": 0.0,
+    "min": 1.0,
+    "max": 1.0,
+    "ci_low": 1.0,
+    "ci_high": 1.0,
+    "confidence": 0.95
+  }
+}

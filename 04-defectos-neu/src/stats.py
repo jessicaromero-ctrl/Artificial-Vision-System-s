@@ -9,7 +9,7 @@ prueba. La prueba de McNemar compara dos clasificadores sobre casos pareados.
 """
 
 import numpy as np
-from scipy.stats import binomtest
+from scipy.stats import beta, binomtest, t
 from sklearn.metrics import accuracy_score, f1_score
 
 
@@ -91,3 +91,17 @@ def paired_bootstrap_diff(y_true, pred_a, pred_b, n_boot=2000, alpha=0.05, seed=
         "confidence": 1 - alpha,
         "n_boot": n_boot,
     }
+
+
+def clopper_pearson(successes, n, alpha=0.05):
+    """Intervalo exacto de Clopper-Pearson para una proporción.
+
+    Con x aciertos de n: límite inferior = Beta(alpha/2; x, n - x + 1),
+    límite superior = Beta(1 - alpha/2; x + 1, n - x). Es válido aun cuando la
+    proporción es 0 o 1, donde el bootstrap produce intervalos de ancho cero.
+    """
+    x = int(successes)
+    lower = 0.0 if x == 0 else float(beta.ppf(alpha / 2, x, n - x + 1))
+    upper = 1.0 if x == n else float(beta.ppf(1 - alpha / 2, x + 1, n - x))
+    return {"ci_low": lower, "ci_high": upper, "confidence": 1 - alpha,
+            "method": "clopper-pearson"}

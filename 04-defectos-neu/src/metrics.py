@@ -16,7 +16,7 @@ from sklearn.metrics import (  # noqa: E402
     f1_score,
 )
 
-from stats import bootstrap_ci  # noqa: E402
+from stats import bootstrap_ci, clopper_pearson  # noqa: E402
 
 
 def to_indices(values, classes):
@@ -78,12 +78,14 @@ def evaluate_and_save(y_true, y_pred, classes, out_dir, name, paths=None,
             for p, t, q in zip(paths, y_true, y_pred):
                 writer.writerow([str(p), int(t), int(q), classes[t], classes[q]])
 
+    ci_cp = clopper_pearson(int((y_true == y_pred).sum()), len(y_true))
+
     metrics = {
         "model": name,
         "n_test": int(len(y_true)),
         "accuracy": float(acc),
         "macro_f1": float(macro_f1),
-        "confidence_intervals": {"accuracy": ci_acc, "macro_f1": ci_f1},
+        "confidence_intervals": {"accuracy": ci_acc, "macro_f1": ci_f1, "accuracy_clopper_pearson": ci_cp},
         "per_class": report,
     }
     (out_dir / f"metrics_{name}.json").write_text(

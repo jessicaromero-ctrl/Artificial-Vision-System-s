@@ -1,0 +1,29 @@
+{
+  "runs": [
+    {
+      "archivo": "resultados/seed_1/best_resnet18.pt",
+      "accuracy": 1.0,
+      "logloss_test": 0.0016338424757122993
+    },
+    {
+      "archivo": "resultados/seed_2/best_resnet18.pt",
+      "accuracy": 1.0,
+      "logloss_test": 0.00013531807053368539
+    },
+    {
+      "archivo": "resultados/seed_42/best_resnet18.pt",
+      "accuracy": 1.0,
+      "logloss_test": 0.0005311178974807262
+    }
+  ],
+  "logloss_test": {
+    "n": 3,
+    "mean": 0.000766759481242237,
+    "sd": 0.0007765558996152206,
+    "min": 0.00013531807053368539,
+    "max": 0.0016338424757122993,
+    "ci_low": -0.0011623123142741362,
+    "ci_high": 0.00269583127675861,
+    "confidence": 0.95
+  }
+}
