@@ -1,6 +1,21 @@
-# Detección de defectos superficiales en acero (dataset NEU)
+# Sistema de visión para la detección de fallas en placas metálicas: estudio de laboratorio con el dataset NEU
 
-Clasificación de seis tipos de defecto superficial en láminas de acero laminado. Se comparan un **baseline clásico de Procesamiento Digital de Imágenes (PDI)** con descriptores de textura LBP y un SVM, contra una **red neuronal convolucional (CNN)** ResNet-18 con transfer learning. Todas las cifras provienen de corridas reales en un equipo local, con intervalos de confianza y pruebas estadísticas pareadas.
+> **Alcance de este documento.** Es un estudio de laboratorio en un entorno controlado, con un dataset público de imágenes. **No tiene validez para una aplicación industrial real en una siderúrgica.** Los resultados no son reproducibles directamente en una línea de producción, ni son comparables con las estadísticas de una planta con mayor volumen de placas metálicas. Cualquier despliegue requiere validación en planta con datos propios, como se detalla en la sección 12.5.
+
+Clasificación de seis tipos de defecto superficial en láminas de acero laminado. Se comparan un **baseline clásico de Procesamiento Digital de Imágenes (PDI)** con descriptores de textura LBP y un SVM, contra una **red neuronal convolucional (CNN)** ResNet-18 con transfer learning. Todas las cifras provienen de corridas reales en un equipo local, con intervalos de confianza y pruebas estadísticas pareadas. El objetivo es comparar metodologías en condiciones controladas, no certificar un sistema para producción.
+
+## Alcance y validez
+
+| Aspecto | Este estudio | Lo que requiere una aplicación industrial |
+|---|---|---|
+| Condiciones de captura | Imágenes de laboratorio, iluminación y encuadre uniformes | Cámaras en línea, con polvo, vibración, reflejos y cambios de luz por turno |
+| Velocidad de la línea | No se modela | Tasa de inspección sostenida a la velocidad real de laminación |
+| Tipos de placa y acero | Una colección de 1,800 imágenes de 6 clases | Múltiples aleaciones, espesores, acabados y lotes |
+| Volumen y distribución de defectos | Distribución balanceada, 300 imágenes por clase | Distribución real, muy desbalanceada, con defectos raros |
+| Métricas de tasa de error | 360 imágenes de prueba | Miles o millones de placas, con monitoreo continuo |
+| Hardware | Laptop con CPU, un solo equipo | Hardware industrial en el punto de inspección |
+
+**Qué sí aporta este documento:** una comparación metodológica controlada, con particionado sin fuga de datos, intervalos de confianza y pruebas pareadas, sobre un dataset público de defectos de láminas de acero. Esa metodología puede reutilizarse en un proyecto industrial, pero las cifras aquí no deben usarse como garantía de desempeño en planta.
 
 ## Resumen ejecutivo
 
@@ -425,6 +440,8 @@ La revisión humana se concentra en los casos de baja confianza y en las clases 
 
 ## 14. Limitaciones
 
+- **Sin validez industrial directa:** el estudio es de laboratorio. Sus cifras no representan el desempeño en una línea de producción siderúrgica ni pueden trasladarse a una planta con otro volumen, otro tipo de placa o otra iluminación.
+- **Estadísticas no trasladables:** los intervalos y el valor p describen este conjunto de prueba. Una planta con mayor volumen tiene distribuciones de defectos y condiciones distintas, así que su tasa de error debe estimarse con sus propios datos.
 - **Prueba pequeña y saturada:** con 360 imágenes, la CNN no tuvo errores, y el intervalo exacto solo acota la tasa de error por encima de aproximadamente 1 %. Para estimar una tasa de error de producción se necesitan miles de piezas.
 - **Poca potencia de McNemar:** con 5 casos discordantes, la prueba no puede alcanzar significancia al 5 % en esta dirección. La ausencia de significancia no demuestra equivalencia.
 - **Una sola semilla:** los intervalos cuantifican el muestreo de la prueba, no la variabilidad del entrenamiento. Falta repetir con varias semillas.
