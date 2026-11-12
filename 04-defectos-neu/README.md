@@ -88,7 +88,7 @@ Se usan patrones *uniformes* (como máximo dos transiciones 0/1 circulares), lo 
 **SVM con kernel RBF.** El clasificador usa la función de decisión
 
 $$
-f(\mathbf{x}) = \operatorname{sign}\!\left(\sum_{i} \alpha_i y_i K(\mathbf{x}_i, \mathbf{x}) + b\right), \qquad K(\mathbf{x}, \mathbf{x}') = \exp\!\left(-\gamma \lVert \mathbf{x} - \mathbf{x}' \rVert^2\right)
+f(\mathbf{x}) = \text{sign}\!\left(\sum_{i} \alpha_i y_i K(\mathbf{x}_i, \mathbf{x}) + b\right), \qquad K(\mathbf{x}, \mathbf{x}') = \exp\!\left(-\gamma \lVert \mathbf{x} - \mathbf{x}' \rVert^2\right)
 $$
 
 Para $K > 2$ clases se usa la estrategia uno contra uno. Los parámetros $C$ y $\gamma$ se eligen por validación cruzada de 5 particiones sobre el entrenamiento, optimizando F1 macro.
@@ -140,7 +140,7 @@ Un resultado como "98.6 %" es una estimación puntual. Con 360 imágenes, cambia
 Se remuestrean las $n$ imágenes de prueba con reemplazo, $B$ veces, y se calcula la métrica $\theta^*_b$ en cada remuestreo. El intervalo percentil al $(1 - \alpha)$ es
 
 $$
-\mathrm{IC}_{95\%} = \left[\theta^*_{(\alpha/2)},\ \theta^*_{(1-\alpha/2)}\right]
+\text{IC}_{95} = \left[\theta^*_{(\alpha/2)},\ \theta^*_{(1-\alpha/2)}\right]
 $$
 
 donde $\theta^*_{(q)}$ es el percentil $q$ de la distribución bootstrap. Con $B = 2000$ y $\alpha = 0.05$.
@@ -274,6 +274,7 @@ El detalle por clase (precisión, recall y F1) está en `resultados/metrics_base
 
 - **Para la inspección industrial:** ambos enfoques distinguen los seis defectos con error menor al 2 %. Eso permite automatizar la clasificación en la línea.
 - **Para la decisión de diseño:** el baseline clásico logra un desempeño equivalente con un modelo mucho más ligero, explicable y barato de operar. La CNN solo se justificaría si mejora de forma significativa en un conjunto de prueba más grande o más difícil.
+- **Sobre las rayas:** la CNN clasificó correctamente las 60 imágenes de *scratches* en prueba, mientras el baseline falló en 3. Es la fuente de casi toda la diferencia, pero es un patrón en una clase, no una superioridad general demostrada.
 - **Para la metodología:** la diferencia entre modelos es de 3 imágenes. Reportar solo la cifra puntual habría sugerido una ventaja que las pruebas no respaldan.
 
 ## 12. Observaciones metodológicas y técnicas
@@ -285,7 +286,21 @@ El detalle por clase (precisión, recall y F1) está en `resultados/metrics_base
 - **Consistencia en la evaluación:** las etiquetas textuales (baseline) y los índices (CNN) pasan por la misma conversión antes de calcular métricas.
 - **Reutilización del dataset de detección:** la clase se toma de la carpeta y las bounding boxes no se usan. Es válido para clasificación, pero debe documentarse.
 
-## 13. Limitaciones
+## 13. Costo computacional y consideraciones de despliegue
+
+| Aspecto | Baseline LBP + SVM | CNN ResNet-18 |
+|---|---|---|
+| Representación de entrada | Vector de 54 dimensiones (10 + 18 + 26 bins de los tres histogramas LBP) | Imagen completa en 128 px (prueba) o 224 px (corrida final) |
+| Parámetros del modelo | Vectores de soporte del SVM (cantidad pendiente de medir) | Aprox. 11.7 millones |
+| Tamaño en disco | Pendiente de medir | 44.7 MB (archivo de pesos de PyTorch) |
+| Memoria de inferencia | Mínima: vector de características y SVM | Mayor: activaciones intermedias de la red |
+| Memoria de entrenamiento | Pequeña | Alta: gradientes y estados de AdamW (dos por parámetro) |
+
+**Lectura para despliegue industrial.** Ambos modelos alcanzan exactitudes equivalentes en este conjunto de prueba. El baseline requiere mucho menos memoria y cómputo, lo que facilita ejecutarlo en controladores o equipos de borde. La CNN necesita GPU o un acelerador para mantener una tasa de inspección alta.
+
+**Pendiente.** Medir en el mismo equipo la latencia por imagen y la memoria pico de inferencia de ambos modelos, así como el tamaño serializado del SVM. Sin estas cifras, la comparación de costo es cualitativa.
+
+## 14. Limitaciones
 
 - **Una sola partición de prueba:** los IC cuantifican la variabilidad del muestreo de las 360 imágenes, no la variabilidad del entrenamiento. Con una sola semilla no se mide la variación entre corridas.
 - **Poca potencia estadística:** con 7 casos discordantes, la prueba de McNemar solo detecta diferencias grandes. Una diferencia pequeña podría existir sin ser detectada.
@@ -293,16 +308,17 @@ El detalle por clase (precisión, recall y F1) está en `resultados/metrics_base
 - **Validación fácil:** la validación interna llega a 1.000 de exactitud, por lo que no discrimina bien entre configuraciones.
 - **Dominio controlado:** las imágenes son de laboratorio, con iluminación y encuadre uniformes. El desempeño en líneas reales puede ser menor.
 - **Baseline con histograma global:** el descriptor LBP pierde la posición espacial del defecto.
+- **Costo no medido:** latencia y memoria de inferencia aún no se han medido en el equipo de despliegue.
 - **Clasificación, no localización:** el sistema indica qué defecto hay, pero no dónde.
 
-## 14. Insights centrales
+## 15. Insights centrales
 
 - Los descriptores de textura bien elegidos son una referencia muy fuerte para inspección superficial en entornos controlados.
 - Un modelo de aprendizaje profundo debe compararse contra un baseline clásico bien ajustado y con una prueba pareada, no contra cifras puntuales.
 - La calidad del pipeline de datos (deduplicación, particionado, aislamiento de la prueba, verificación de fuga) afecta la validez de los resultados tanto como el modelo.
 - Con conjuntos de prueba pequeños, una diferencia de un par de imágenes no es evidencia de superioridad.
 
-## 15. Aplicaciones futuras
+## 16. Aplicaciones futuras
 
 - **Localización de defectos:** entrenar un detector de objetos con las bounding boxes del dataset original.
 - **Validación en producción:** probar con imágenes de líneas reales y aplicar adaptación de dominio.
@@ -310,7 +326,7 @@ El detalle por clase (precisión, recall y F1) está en `resultados/metrics_base
 - **Inspección en tiempo real:** integrar con cámaras industriales y medir latencia.
 - **Retroalimentación de proceso:** analizar tendencias de defectos para ajustar la laminación.
 
-## 16. Glosario
+## 17. Glosario
 
 - **PDI (Procesamiento Digital de Imágenes):** técnicas para transformar y analizar imágenes con algoritmos explícitos.
 - **LBP (Local Binary Patterns):** descriptor de textura basado en comparaciones entre un píxel y sus vecinos.
@@ -342,7 +358,7 @@ El detalle por clase (precisión, recall y F1) está en `resultados/metrics_base
 - **Potencia estadística:** probabilidad de detectar una diferencia real cuando existe.
 - **Sobreajuste (overfitting):** el modelo memoriza el entrenamiento y generaliza mal.
 
-## 17. Estado del proyecto
+## 18. Estado del proyecto
 
 - [x] Descarga y verificación del dataset.
 - [x] Deduplicación, particionado estratificado y verificación de fuga.
@@ -350,9 +366,10 @@ El detalle por clase (precisión, recall y F1) está en `resultados/metrics_base
 - [x] CNN ResNet-18 con transfer learning (8 épocas, 128 px).
 - [x] Prueba de McNemar e IC de la diferencia.
 - [ ] Corrida final de la CNN con configuración mayor (15 épocas, 224 px).
+- [ ] Medición de latencia, memoria pico y tamaño del SVM.
 - [ ] Análisis de errores por clase.
 - [ ] Varias semillas para medir la variabilidad de entrenamiento.
 
-## 18. Uso de inteligencia artificial
+## 19. Uso de inteligencia artificial
 
 Se empleó ayuda de inteligencia artificial (Claude) para la redacción del código y de este documento. Las ejecuciones, métricas y pruebas estadísticas provienen de corridas reales en el equipo local del autor.
