@@ -1,10 +1,88 @@
 # Segmentación de hojas de tomate con procesamiento digital de imágenes clásico
 
-> **Alcance y validez.** Este es un ejercicio de laboratorio con dos imágenes (PVC1 y PVC2), ejecutado en un entorno controlado. Los resultados ilustran el método; **no tienen validez para un diagnóstico agronómico real** ni permiten estimar el comportamiento del pipeline sobre un conjunto amplio de hojas, cámaras o condiciones de iluminación.
+![Python](https://img.shields.io/badge/Python-3.9%2B-blue) ![OpenCV](https://img.shields.io/badge/OpenCV-4.8%2B-green) ![Estado](https://img.shields.io/badge/estado-laboratorio-orange)
 
-## Resumen
+**De una fotografía de hoja a una máscara binaria, sin aprendizaje automático.** Un pipeline clásico de PDI separa la hoja del fondo, delimita el amarillamiento y cuantifica la sensibilidad del resultado al umbral.
 
-Se diseñó un pipeline clásico de procesamiento digital de imágenes (PDI) para separar la hoja de tomate del fondo y, dentro de la hoja, estimar zonas con síntomas de amarillamiento y necrosis. El resultado de cada imagen es una **máscara binaria** (blanco = hoja, negro = fondo). Se comparó el espacio de color HSV (saturación) con el croma en Lab, y se eligió el croma porque la saturación no segmentó correctamente la hoja PVC1.
+![Resumen visual del pipeline](resultados_segmentacion/resumen_visual.png)
+
+> **Alcance y validez.** Ejercicio de laboratorio con dos imágenes (PVC1 y PVC2), ejecutado en un entorno controlado. Los resultados ilustran el método y **no tienen validez para un diagnóstico agronómico real**.
+
+## Tabla de contenidos
+
+- [Intención y alcance](#intención-y-alcance)
+- [Resultados de un vistazo](#resultados-de-un-vistazo)
+- [Mapa de alcance](#mapa-de-alcance)
+- [Concepto y origen](#concepto-y-origen)
+- [Importancia y aplicaciones industriales](#importancia-y-aplicaciones-industriales)
+- [Datos](#datos)
+- [Notación](#notación)
+- [Pipeline](#pipeline)
+- [Descripción paso a paso](#descripción-paso-a-paso)
+- [Fundamentos](#fundamentos)
+- [Resultados](#resultados)
+- [Análisis](#análisis)
+- [Decisiones de diseño](#decisiones-de-diseño)
+- [Observaciones metodológicas](#observaciones-metodológicas)
+- [Insights](#insights)
+- [Limitaciones](#limitaciones)
+- [Ejecución](#ejecución)
+- [Estructura del repositorio](#estructura-del-repositorio)
+- [Glosario](#glosario)
+- [Referencias](#referencias)
+- [Declaración de uso de IA](#declaración-de-uso-de-ia)
+
+## Intención y alcance
+
+**Pregunta que responde el proyecto:** ¿se puede aislar una hoja de tomate de su fondo y cuantificar el amarillamiento con procesamiento clásico, sin entrenar un modelo?
+
+**Qué sí hace:**
+- Obtiene una máscara binaria de la hoja con un pipeline reproducible.
+- Explica cada decisión con evidencia visual y numérica.
+- Mide cuánto depende el área segmentada del umbral elegido.
+
+**Qué no hace:**
+- No valida la segmentación con máscaras de referencia (IoU y Dice quedan pendientes).
+- No calibra los rangos de síntomas con datos etiquetados.
+- No generaliza a otras cámaras, iluminaciones ni variedades.
+
+## Resultados de un vistazo
+
+| Métrica | PVC1 (sana) | PVC2 (con síntomas) |
+|---|---|---|
+| Área de la hoja | 29 453 px (44.942 % de la imagen) | 18 275 px (27.885 % de la imagen) |
+| Área de síntomas | 4 560 px (15.482 % de la hoja) | 8 406 px (45.997 % de la hoja) |
+| Sensibilidad del área (±30 unidades) | 43.527 % a 45.819 % | 24.835 % a 30.042 % |
+| Umbral de Otsu sobre croma | 91 | 110 |
+
+**Composición de cada imagen (píxeles):**
+
+```mermaid
+pie showData title PVC1: composición de la imagen
+    "Hoja sin síntomas" : 24893
+    "Síntomas" : 4560
+    "Fondo" : 36083
+```
+
+```mermaid
+pie showData title PVC2: composición de la imagen
+    "Hoja sin síntomas" : 9869
+    "Síntomas" : 8406
+    "Fondo" : 47261
+```
+
+## Mapa de alcance
+
+- [x] Segmentación de la hoja con croma en Lab y umbral de Otsu
+- [x] Limpieza morfológica y selección del componente mayor
+- [x] Segmentación exploratoria de síntomas
+- [x] Análisis de sensibilidad al umbral (±30 unidades)
+- [x] Comparación cualitativa entre saturación HSV y croma Lab
+- [x] Reporte visual con figuras y métricas en JSON
+- [ ] IoU y Dice con máscaras de referencia hechas a mano
+- [ ] Ampliación a más imágenes con distintas condiciones de iluminación
+- [ ] Calibración de los rangos de síntomas con datos etiquetados
+- [ ] Tratamiento explícito de sombras para evitar falsos positivos de necrosis
 
 ## Concepto y origen
 
@@ -29,12 +107,6 @@ Medir un objeto requiere primero aislarlo. Una máscara binaria confiable es el 
 
 **Por qué un método clásico sigue siendo útil.** Es transparente, cada etapa se puede verificar con una imagen, no necesita datos etiquetados y corre en una laptop sin GPU. Su costo es la sensibilidad a las condiciones de captura, que este reporte documenta.
 
-## Objetivo
-
-1. Obtener una imagen binaria de cada hoja mediante un pipeline reproducible.
-2. Documentar cada etapa del preprocesamiento y justificar las decisiones de diseño.
-3. Medir la sensibilidad del área segmentada frente al umbral.
-
 ## Datos
 
 | Imagen | Dimensiones | Descripción visual | Condición |
@@ -42,7 +114,7 @@ Medir un objeto requiere primero aislarlo. Una máscara binaria confiable es el 
 | PVC1.JPG | 256 × 256 px | Hoja verde sana sobre fondo gris | Sana |
 | PVC2.JPG | 256 × 256 px | Hoja con amarillamiento y bordes oscuros sobre fondo gris | Con síntomas |
 
-Ambas imágenes se procesan sin recorte previo. No se dispone de máscaras de referencia hechas a mano, por lo que IoU y Dice no se calculan en este reporte (ver [Métricas](#métricas)).
+No se dispone de máscaras de referencia hechas a mano, por lo que IoU y Dice no se calculan en este reporte.
 
 ## Notación
 
@@ -77,18 +149,6 @@ flowchart TD
     K --> O["Métricas y figuras"]
 ```
 
-Cada etapa tiene una función específica:
-
-| Etapa | Función | Parámetro |
-|---|---|---|
-| Suavizado gaussiano | Reduce el ruido del sensor | Núcleo 5 × 5 |
-| Conversión a Lab y croma | Separa el color del brillo y mide qué tan alejado está del gris | Canales a* y b* |
-| Umbral de Otsu | Elige el corte que maximiza la separación entre hoja y fondo | Automático |
-| Apertura | Elimina motas pequeñas del fondo | Elipse 7 × 7 |
-| Cierre | Une huecos pequeños dentro de la hoja | Elipse 15 × 15 |
-| Relleno de huecos | Completa regiones interiores que no pertenecen al fondo | Inundación desde el borde |
-| Componente mayor | Conserva solo la hoja y descarta fragmentos sueltos | Conectividad 8 |
-
 ## Descripción paso a paso
 
 1. **Lectura.** Se carga la imagen en formato BGR de 256 × 256 píxeles.
@@ -103,6 +163,12 @@ Cada etapa tiene una función específica:
 10. **Sensibilidad.** Se repite la segmentación con el umbral desplazado ±10, ±20 y ±30 unidades.
 11. **Salidas.** Se guardan máscaras, superposición, montaje de etapas y métricas en JSON.
 
+Montaje de etapas por imagen:
+
+![Etapas PVC1](resultados_segmentacion/PVC1_etapas.png)
+
+![Etapas PVC2](resultados_segmentacion/PVC2_etapas.png)
+
 ## Fundamentos
 
 ### Espacio de color Lab y croma
@@ -113,7 +179,7 @@ $$
 C^*_{ab} = \sqrt{(a^*)^2 + (b^*)^2}
 $$
 
-El fondo gris tiene $C^*_{ab} \approx 0$, mientras que la hoja verde o amarilla tiene un croma alto. A diferencia de la saturación HSV, el croma responde poco a las sombras, porque estas cambian la luminosidad $L^*$ más que los ejes cromáticos.
+El fondo gris tiene $C^*_{ab} \approx 0$, mientras que la hoja verde o amarilla tiene un croma alto. A diferencia de la saturación HSV, el croma responde poco a las sombras, porque estas cambian sobre todo la luminosidad $L^*$.
 
 ### Umbral de Otsu
 
@@ -123,7 +189,7 @@ $$
 \sigma_B^2(t) = \omega_0(t)\,\omega_1(t)\,\left[\mu_0(t) - \mu_1(t)\right]^2
 $$
 
-donde $\omega_0$ y $\omega_1$ son las proporciones de píxeles de cada clase y $\mu_0$ y $\mu_1$ sus medias. El umbral óptimo es $t^* = \arg\max_t \sigma_B^2(t)$.
+donde $\omega_0$ y $\omega_1$ son las proporciones de píxeles de cada clase, y $\mu_0$ y $\mu_1$ sus medias. El umbral óptimo es $t^* = \arg\max_t \sigma_B^2(t)$.
 
 ### Operaciones morfológicas
 
@@ -153,18 +219,7 @@ Ambas van de 0 a 1, donde 1 indica coincidencia perfecta. El script las calcula 
 
 ## Resultados
 
-### Métricas principales
-
-| Métrica | PVC1 (sana) | PVC2 (con síntomas) |
-|---|---|---|
-| Umbral de Otsu sobre croma | 91 | 110 |
-| Componentes antes de selección | 1 | 1 |
-| Área de la hoja (px) | 29 453 | 18 275 |
-| Porcentaje de la imagen | 44.942 % | 27.885 % |
-| Área de síntomas (px) | 4 560 | 8 406 |
-| Síntomas sobre área de la hoja | 15.482 % | 45.997 % |
-
-### Imágenes binarias de la hoja
+### Máscaras binarias de la hoja
 
 | PVC1 (Hoja1) | PVC2 (Hoja2) |
 |---|---|
@@ -175,12 +230,6 @@ Ambas van de 0 a 1, donde 1 indica coincidencia perfecta. El script las calcula 
 | PVC1 | PVC2 |
 |---|---|
 | ![Superposición PVC1](resultados_segmentacion/PVC1_superposicion.png) | ![Superposición PVC2](resultados_segmentacion/PVC2_superposicion.png) |
-
-### Etapas del pipeline
-
-![Etapas PVC1](resultados_segmentacion/PVC1_etapas.png)
-
-![Etapas PVC2](resultados_segmentacion/PVC2_etapas.png)
 
 ### Sensibilidad del área al umbral
 
@@ -209,44 +258,43 @@ La línea superior corresponde a PVC1 y la inferior a PVC2.
 
 ## Análisis
 
-**PVC1 es estable.** Con un desplazamiento de ±30 unidades, el área cambia menos de 2 puntos porcentuales. La hoja sana tiene un contraste de croma marcado frente al fondo, así que el umbral no es crítico.
+**PVC1 es estable.** Con un desplazamiento de ±30 unidades, el área cambia unos 2.3 puntos porcentuales. La hoja sana tiene un contraste de croma marcado frente al fondo, así que el umbral no es crítico.
 
-**PVC2 es más sensible.** Su área varía casi 5 puntos porcentuales en el mismo rango. La zona amarilla tiene un croma cercano al del borde oscuro, por lo que el umbral queda más cerca de la frontera entre clases.
+**PVC2 es más sensible.** Su área varía unos 5 puntos porcentuales en el mismo rango. La zona amarilla tiene un croma cercano al del borde oscuro, por lo que el umbral queda más cerca de la frontera entre clases.
 
-**Comparación con la saturación HSV.** Antes de elegir el croma se evaluó la saturación. Los resultados fueron:
+**Falso positivo en la sombra.** En PVC1, la segmentación de síntomas marca como necrosis una zona oscura de la parte inferior derecha. Esa zona es una sombra de la propia hoja, no daño. El criterio de valor bajo no distingue entre sombra y necrosis.
 
-| Método | PVC1 área (px) | PVC1 (%) | PVC2 área (px) | PVC2 (%) |
-|---|---|---|---|---|
-| Saturación HSV + Otsu | 13 702 | 20.908 | 20 510 | 31.296 |
-| Croma Lab + Otsu | 29 453 | 44.942 | 18 275 | 27.885 |
+## Decisiones de diseño
 
-Con saturación, PVC1 quedó fragmentada: el lado izquierdo de la hoja, de menor saturación, quedó fuera de la máscara. Con croma, la hoja queda completa. En PVC2 la diferencia es de 3.4 puntos porcentuales; la máscara de croma sigue mejor el contorno visible.
-
-**Falso positivo en la sombra.** En PVC1, la segmentación de síntomas marca como necrosis una zona oscura de la parte inferior derecha. Esa zona es una sombra de la propia hoja, no daño. El criterio de valor bajo ($V < 60$) no distingue entre sombra y necrosis. Este punto se reporta como limitación.
+| Decisión | Alternativa descartada | Motivo | Evidencia |
+|---|---|---|---|
+| Canal croma en Lab | Saturación HSV | La sombra afecta sobre todo la luminosidad | PVC1: 29 453 px con croma frente a 13 702 px con saturación |
+| Umbral de Otsu automático | Umbral fijo | Evita ajustar un valor por imagen | Umbrales 91 y 110 en dos condiciones distintas |
+| Elementos 7 × 7 y 15 × 15 | Elementos mayores | Limpian sin borrar bordes finos | Inspección visual en las figuras de etapas |
+| Sensibilidad ±30 | Una sola medición | Cuantifica cuánto depende el resultado del umbral | PVC1 unos 2.3 puntos; PVC2 unos 5 puntos |
 
 ## Observaciones metodológicas
 
-- **Canal de color.** La elección del croma sobre la saturación HSV se hizo con evidencia visual y numérica en PVC1. Con saturación, el área de la hoja fue 13 702 px; con croma, 29 453 px. Elegir el canal fue la decisión más determinante del pipeline.
-- **Parámetros fijos.** Los tamaños de los elementos estructurantes (7 × 7 y 15 × 15) se eligieron para imágenes de 256 × 256 píxeles. Cambiar la resolución de la cámara obliga a reajustarlos.
+- **Canal de color.** La elección del croma sobre la saturación HSV se hizo con evidencia visual y numérica en PVC1. Elegir el canal fue la decisión más determinante del pipeline.
+- **Parámetros fijos.** Los tamaños de los elementos estructurantes se eligieron para imágenes de 256 × 256 píxeles. Cambiar la resolución de la cámara obliga a reajustarlos.
 - **Sin validación cuantitativa.** No hay máscaras de referencia; por eso no se reportan IoU ni Dice. La validación fue visual, y así debe citarse.
 - **Sensibilidad como diagnóstico.** El análisis ±30 unidades no mejora la segmentación; sirve para saber cuánto depende el resultado del umbral.
-- **Síntomas exploratorios.** Los rangos de síntomas son orientativos. No se calibraron con datos etiquetados.
+- **Síntomas exploratorios.** Los rangos de síntomas son orientativos y no se calibraron con datos etiquetados.
 
 ## Insights
 
-- **PVC1 es robusta al umbral.** El área cambia menos de 2.3 puntos porcentuales en ±30 unidades. La hoja sana tiene un contraste de croma marcado frente al fondo.
+- **PVC1 es robusta al umbral.** El área cambia unos 2.3 puntos porcentuales en ±30 unidades. La hoja sana tiene un contraste de croma marcado frente al fondo.
 - **PVC2 es más sensible.** El área varía unos 5 puntos porcentuales en el mismo rango. La zona amarilla y el borde oscuro tienen croma cercano, así que el umbral cae cerca de la frontera entre clases.
-- **Las sombras confunden la necrosis.** En PVC1, la zona oscura de la parte inferior derecha es una sombra, no daño. El criterio de valor bajo no la distingue, así que se requiere un tratamiento explícito de sombras.
+- **Las sombras confunden la necrosis.** En PVC1, la zona oscura de la parte inferior derecha es una sombra, no daño. Se requiere un tratamiento explícito de sombras.
 - **La saturación subestima hojas con zonas de baja saturación.** Con HSV, la mitad izquierda de PVC1 quedó fuera de la máscara.
 - **El porcentaje de síntomas es una magnitud aproximada.** Un 46 % en PVC2 indica amarillamiento importante, pero la cifra exacta depende de rangos sin calibrar.
 
 ## Limitaciones
 
-- Solo dos imágenes, sin repeticiones ni variación de iluminación.
+- Solo dos imágenes, sin repeticiones ni variación de iluminación o cámara.
 - Sin máscaras de referencia manuales, no se calcularon IoU ni Dice.
-- Los rangos de síntomas (amarillo: matiz 15–40 con saturación mayor a 60; necrosis: valor menor a 60) son orientativos y no están calibrados con datos etiquetados.
-- Las sombras pueden clasificarse como necrosis.
-- El umbral de Otsu asume dos clases bien separadas; la hoja PVC2 se acerca a esa suposición pero no la cumple del todo.
+- Los rangos de síntomas son orientativos. Las sombras pueden clasificarse como necrosis, como ocurre en PVC1.
+- El umbral de Otsu asume dos clases bien separadas; PVC2 se acerca a esa condición pero no la cumple del todo.
 
 ## Ejecución
 
@@ -256,6 +304,19 @@ Requisitos: Python 3.9 o superior.
 cd 05-segmentacion-hojas
 pip install -r requirements.txt
 python segmentar_hojas.py --imagenes PVC1.JPG PVC2.JPG --salida resultados_segmentacion
+```
+
+Salida esperada para PVC1 (extracto):
+
+```json
+{
+  "imagen": "PVC1.JPG",
+  "umbral_otsu_saturacion": 91.0,
+  "area_hoja_px": 29453,
+  "porcentaje_hoja": 44.942,
+  "area_sintomas_px": 4560,
+  "porcentaje_sintomas_sobre_hoja": 15.482
+}
 ```
 
 Para calcular IoU y Dice con máscaras de referencia (mismo orden que las imágenes):
@@ -284,6 +345,7 @@ python segmentar_hojas.py --imagenes PVC1.JPG PVC2.JPG --gt ref_PVC1.png ref_PVC
 ├── PVC1.JPG
 ├── PVC2.JPG
 └── resultados_segmentacion/
+    ├── resumen_visual.png
     ├── PVC1_mascara_hoja.png
     ├── PVC1_mascara_sintomas.png
     ├── PVC1_superposicion.png
@@ -314,6 +376,8 @@ python segmentar_hojas.py --imagenes PVC1.JPG PVC2.JPG --gt ref_PVC1.png ref_PVC
 
 - Otsu, N. (1979). A threshold selection method from gray-level histograms. *IEEE Transactions on Systems, Man, and Cybernetics*, 9(1), 62–66.
 - Gonzalez, R. C., & Woods, R. E. (2018). *Digital Image Processing* (4.ª ed.). Pearson.
+- Matheron, G. (1975). *Random Sets and Integral Geometry*. Wiley.
+- Serra, J. (1982). *Image Analysis and Mathematical Morphology*. Academic Press.
 - Jaccard, P. (1912). The distribution of the flora in the alpine zone. *New Phytologist*, 11(2), 37–50.
 - Dice, L. R. (1945). Measures of the amount of ecologic association between species. *Ecology*, 26(3), 297–302.
 - CIE (1976). *Colorimetry*, publicación CIE 15, espacio CIELAB.
