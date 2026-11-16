@@ -6,6 +6,29 @@
 
 Se diseñó un pipeline clásico de procesamiento digital de imágenes (PDI) para separar la hoja de tomate del fondo y, dentro de la hoja, estimar zonas con síntomas de amarillamiento y necrosis. El resultado de cada imagen es una **máscara binaria** (blanco = hoja, negro = fondo). Se comparó el espacio de color HSV (saturación) con el croma en Lab, y se eligió el croma porque la saturación no segmentó correctamente la hoja PVC1.
 
+## Concepto y origen
+
+La **segmentación semántica clásica** consiste en asignar a cada píxel una etiqueta (objeto o fondo) usando solo sus propiedades de color, brillo o textura, sin aprendizaje automático. Su base teórica se apoya en tres líneas de trabajo:
+
+- **Umbralado (*thresholding*).** Otsu (1979) propuso elegir el umbral que maximiza la varianza entre clases del histograma. Sigue siendo el método de umbral global más citado.
+- **Espacios de color perceptuales.** La CIE definió el espacio CIELAB (1976) para que distancias numéricas se parezcan a diferencias percibidas por el ojo humano.
+- **Morfología matemática.** Matheron (1975) y Serra (1982) formalizaron la erosión, la dilatación, la apertura y el cierre como operaciones sobre conjuntos, base de las operaciones de limpieza de máscaras.
+
+**Metáfora.** Imagina clasificar a los invitados de una fiesta en dos salas sin preguntarles nada: solo miras su camiseta. Otsu decide dónde poner la línea divisoria; la morfología limpia a quienes quedaron en la sala equivocada; el componente mayor se queda con el grupo más grande que está unido.
+
+## Importancia y aplicaciones industriales
+
+Medir un objeto requiere primero aislarlo. Una máscara binaria confiable es el insumo de casi cualquier medición posterior: área, forma, color medio o proporción de daño.
+
+| Área | Uso de la máscara | Ejemplo |
+|---|---|---|
+| Fenotipado agrícola | Medir área foliar y proporción dañada para comparar variedades | Evaluar resistencia de tomate a una enfermedad |
+| Control de calidad en alimentos | Clasificar frutas y verduras por área afectada | Separar papas con defectos superficiales en una línea de empaque |
+| Inspección en manufactura | Separar la pieza del fondo antes de medirla o buscar defectos | Verificar dimensiones de piezas metálicas en banda |
+| Monitoreo ambiental | Estimar cobertura vegetal en imágenes de drones | Seguir la pérdida de cobertura en una zona reforestada |
+
+**Por qué un método clásico sigue siendo útil.** Es transparente, cada etapa se puede verificar con una imagen, no necesita datos etiquetados y corre en una laptop sin GPU. Su costo es la sensibilidad a las condiciones de captura, que este reporte documenta.
+
 ## Objetivo
 
 1. Obtener una imagen binaria de cada hoja mediante un pipeline reproducible.
@@ -20,6 +43,19 @@ Se diseñó un pipeline clásico de procesamiento digital de imágenes (PDI) par
 | PVC2.JPG | 256 × 256 px | Hoja con amarillamiento y bordes oscuros sobre fondo gris | Con síntomas |
 
 Ambas imágenes se procesan sin recorte previo. No se dispone de máscaras de referencia hechas a mano, por lo que IoU y Dice no se calculan en este reporte (ver [Métricas](#métricas)).
+
+## Notación
+
+| Símbolo | Significado |
+|---|---|
+| $I(x, y)$ | Imagen de entrada en el píxel $(x, y)$ |
+| $L^*$, $a^*$, $b^*$ | Luminosidad y ejes cromáticos en CIELAB |
+| $C^*_{ab}$ | Croma: distancia al gris neutro en el plano $a^*b^*$ |
+| $t^*$ | Umbral óptimo de Otsu |
+| $\sigma_B^2(t)$ | Varianza entre clases para el umbral $t$ |
+| $B$ | Elemento estructurante de la morfología |
+| $P$, $R$ | Máscara predicha y máscara de referencia |
+| $\text{IoU}$, $\text{Dice}$ | Índices de solapamiento entre $P$ y $R$ |
 
 ## Pipeline
 
@@ -52,6 +88,20 @@ Cada etapa tiene una función específica:
 | Cierre | Une huecos pequeños dentro de la hoja | Elipse 15 × 15 |
 | Relleno de huecos | Completa regiones interiores que no pertenecen al fondo | Inundación desde el borde |
 | Componente mayor | Conserva solo la hoja y descarta fragmentos sueltos | Conectividad 8 |
+
+## Descripción paso a paso
+
+1. **Lectura.** Se carga la imagen en formato BGR de 256 × 256 píxeles.
+2. **Suavizado.** Un filtro gaussiano 5 × 5 reduce el ruido del sensor sin desplazar los bordes.
+3. **Espacio de color.** La imagen se convierte a CIELAB. Se calcula el croma $C^*_{ab} = \sqrt{(a^*)^2 + (b^*)^2}$ y se normaliza a 0–255.
+4. **Umbral.** Otsu elige $t^*$ sobre el croma y produce una imagen binaria.
+5. **Apertura.** Una elipse 7 × 7 elimina motas pequeñas.
+6. **Cierre.** Una elipse 15 × 15 une huecos pequeños dentro de la hoja.
+7. **Relleno.** Se inunda el fondo desde el borde; los huecos cerrados se rellenan.
+8. **Selección.** Se conserva el componente conectado de mayor área: la hoja.
+9. **Síntomas.** Dentro de la hoja se marca amarillamiento (matiz 15–40 con saturación mayor a 60) y zonas oscuras (valor menor a 60).
+10. **Sensibilidad.** Se repite la segmentación con el umbral desplazado ±10, ±20 y ±30 unidades.
+11. **Salidas.** Se guardan máscaras, superposición, montaje de etapas y métricas en JSON.
 
 ## Fundamentos
 
@@ -173,6 +223,22 @@ La línea superior corresponde a PVC1 y la inferior a PVC2.
 Con saturación, PVC1 quedó fragmentada: el lado izquierdo de la hoja, de menor saturación, quedó fuera de la máscara. Con croma, la hoja queda completa. En PVC2 la diferencia es de 3.4 puntos porcentuales; la máscara de croma sigue mejor el contorno visible.
 
 **Falso positivo en la sombra.** En PVC1, la segmentación de síntomas marca como necrosis una zona oscura de la parte inferior derecha. Esa zona es una sombra de la propia hoja, no daño. El criterio de valor bajo ($V < 60$) no distingue entre sombra y necrosis. Este punto se reporta como limitación.
+
+## Observaciones metodológicas
+
+- **Canal de color.** La elección del croma sobre la saturación HSV se hizo con evidencia visual y numérica en PVC1. Con saturación, el área de la hoja fue 13 702 px; con croma, 29 453 px. Elegir el canal fue la decisión más determinante del pipeline.
+- **Parámetros fijos.** Los tamaños de los elementos estructurantes (7 × 7 y 15 × 15) se eligieron para imágenes de 256 × 256 píxeles. Cambiar la resolución de la cámara obliga a reajustarlos.
+- **Sin validación cuantitativa.** No hay máscaras de referencia; por eso no se reportan IoU ni Dice. La validación fue visual, y así debe citarse.
+- **Sensibilidad como diagnóstico.** El análisis ±30 unidades no mejora la segmentación; sirve para saber cuánto depende el resultado del umbral.
+- **Síntomas exploratorios.** Los rangos de síntomas son orientativos. No se calibraron con datos etiquetados.
+
+## Insights
+
+- **PVC1 es robusta al umbral.** El área cambia menos de 2.3 puntos porcentuales en ±30 unidades. La hoja sana tiene un contraste de croma marcado frente al fondo.
+- **PVC2 es más sensible.** El área varía unos 5 puntos porcentuales en el mismo rango. La zona amarilla y el borde oscuro tienen croma cercano, así que el umbral cae cerca de la frontera entre clases.
+- **Las sombras confunden la necrosis.** En PVC1, la zona oscura de la parte inferior derecha es una sombra, no daño. El criterio de valor bajo no la distingue, así que se requiere un tratamiento explícito de sombras.
+- **La saturación subestima hojas con zonas de baja saturación.** Con HSV, la mitad izquierda de PVC1 quedó fuera de la máscara.
+- **El porcentaje de síntomas es una magnitud aproximada.** Un 46 % en PVC2 indica amarillamiento importante, pero la cifra exacta depende de rangos sin calibrar.
 
 ## Limitaciones
 
