@@ -120,14 +120,14 @@ No se dispone de máscaras de referencia hechas a mano, por lo que IoU y Dice no
 
 | Símbolo | Significado |
 |---|---|
-| $I(x, y)$ | Imagen de entrada en el píxel $(x, y)$ |
-| $L^*$, $a^*$, $b^*$ | Luminosidad y ejes cromáticos en CIELAB |
-| $C^*_{ab}$ | Croma: distancia al gris neutro en el plano $a^*b^*$ |
-| $t^*$ | Umbral óptimo de Otsu |
-| $\sigma_B^2(t)$ | Varianza entre clases para el umbral $t$ |
-| $B$ | Elemento estructurante de la morfología |
-| $P$, $R$ | Máscara predicha y máscara de referencia |
-| $\text{IoU}$, $\text{Dice}$ | Índices de solapamiento entre $P$ y $R$ |
+| `I(x, y)` | Imagen de entrada en el píxel (x, y) |
+| `L*`, `a*`, `b*` | Luminosidad y ejes cromáticos en CIELAB |
+| `C*ab` | Croma: distancia al gris neutro en el plano a*b* |
+| `t*` | Umbral óptimo de Otsu |
+| `σB²(t)` | Varianza entre clases para el umbral t |
+| `B` | Elemento estructurante de la morfología |
+| `P`, `R` | Máscara predicha y máscara de referencia |
+| `IoU`, `Dice` | Índices de solapamiento entre P y R |
 
 ## Pipeline
 
@@ -153,8 +153,8 @@ flowchart TD
 
 1. **Lectura.** Se carga la imagen en formato BGR de 256 × 256 píxeles.
 2. **Suavizado.** Un filtro gaussiano 5 × 5 reduce el ruido del sensor sin desplazar los bordes.
-3. **Espacio de color.** La imagen se convierte a CIELAB. Se calcula el croma $C^*_{ab} = \sqrt{(a^*)^2 + (b^*)^2}$ y se normaliza a 0–255.
-4. **Umbral.** Otsu elige $t^*$ sobre el croma y produce una imagen binaria.
+3. **Espacio de color.** La imagen se convierte a CIELAB. Se calcula el croma `C*ab = √(a*² + b*²)` y se normaliza a 0–255.
+4. **Umbral.** Otsu elige `t*` sobre el croma y produce una imagen binaria.
 5. **Apertura.** Una elipse 7 × 7 elimina motas pequeñas.
 6. **Cierre.** Una elipse 15 × 15 une huecos pequeños dentro de la hoja.
 7. **Relleno.** Se inunda el fondo desde el borde; los huecos cerrados se rellenan.
@@ -173,47 +173,45 @@ Montaje de etapas por imagen:
 
 ### Espacio de color Lab y croma
 
-El espacio CIELAB separa la luminosidad $L^*$ de dos ejes cromáticos: $a^*$ (verde–rojo) y $b^*$ (azul–amarillo). El croma mide qué tan alejado está un píxel del gris neutro:
+El espacio CIELAB separa la luminosidad `L*` de dos ejes cromáticos: `a*` (verde–rojo) y `b*` (azul–amarillo). El croma mide qué tan alejado está un píxel del gris neutro:
 
-$$
-C^*_{ab} = \sqrt{(a^*)^2 + (b^*)^2}
-$$
+```text
+C*ab = √(a*² + b*²)
+```
 
-El fondo gris tiene $C^*_{ab} \approx 0$, mientras que la hoja verde o amarilla tiene un croma alto. A diferencia de la saturación HSV, el croma responde poco a las sombras, porque estas cambian sobre todo la luminosidad $L^*$.
+El fondo gris tiene `C*ab` cercano a cero, mientras que la hoja verde o amarilla tiene un croma alto. A diferencia de la saturación HSV, el croma responde poco a las sombras, porque estas cambian sobre todo la luminosidad `L*`.
 
 ### Umbral de Otsu
 
-Otsu (1979) busca el umbral $t$ que maximiza la varianza entre clases:
+Otsu (1979) busca el umbral `t` que maximiza la varianza entre clases:
 
-$$
-\sigma_B^2(t) = \omega_0(t)\,\omega_1(t)\,\left[\mu_0(t) - \mu_1(t)\right]^2
-$$
+```text
+σB²(t) = ω0(t) · ω1(t) · [μ0(t) − μ1(t)]²
+```
 
-donde $\omega_0$ y $\omega_1$ son las proporciones de píxeles de cada clase, y $\mu_0$ y $\mu_1$ sus medias. El umbral óptimo es $t^* = \arg\max_t \sigma_B^2(t)$.
+donde `ω0` y `ω1` son las proporciones de píxeles de cada clase, y `μ0` y `μ1` sus medias. El umbral óptimo es:
+
+```text
+t* = arg máx_t σB²(t)
+```
 
 ### Operaciones morfológicas
 
-Con un elemento estructurante $B$, la erosión $\ominus$ y la dilatación $\oplus$ definen:
+Con un elemento estructurante `B`, la erosión `⊖` y la dilatación `⊕` definen:
 
-$$
-A \circ B = (A \ominus B) \oplus B \quad \text{(apertura: elimina motas)}
-$$
-
-$$
-A \bullet B = (A \oplus B) \ominus B \quad \text{(cierre: une huecos)}
-$$
+```text
+Apertura:  A ∘ B = (A ⊖ B) ⊕ B      (elimina motas)
+Cierre:    A • B = (A ⊕ B) ⊖ B      (une huecos)
+```
 
 ### Métricas de solapamiento
 
-Si existe una máscara de referencia $R$ y la predicción es $P$:
+Si existe una máscara de referencia `R` y la predicción es `P`:
 
-$$
-\text{IoU}(P, R) = \frac{|P \cap R|}{|P \cup R|}
-$$
-
-$$
-\text{Dice}(P, R) = \frac{2\,|P \cap R|}{|P| + |R|}
-$$
+```text
+IoU(P, R)  = |P ∩ R| / |P ∪ R|
+Dice(P, R) = 2 · |P ∩ R| / (|P| + |R|)
+```
 
 Ambas van de 0 a 1, donde 1 indica coincidencia perfecta. El script las calcula si se pasan máscaras con la opción `--gt`.
 
@@ -364,7 +362,7 @@ python segmentar_hojas.py --imagenes PVC1.JPG PVC2.JPG --gt ref_PVC1.png ref_PVC
 |---|---|
 | Binaria (imagen) | Imagen con solo dos valores: 0 (negro, fondo) y 255 (blanco, hoja). |
 | Croma | Distancia de un color al gris neutro en el espacio Lab. |
-| Espacio Lab | Espacio de color con luminosidad $L^*$ y ejes cromáticos $a^*$ y $b^*$. |
+| Espacio Lab | Espacio de color con luminosidad `L*` y ejes cromáticos `a*` y `b*`. |
 | Máscara | Imagen binaria que marca qué píxeles pertenecen a un objeto. |
 | Morfología matemática | Operaciones sobre formas binarias: erosión, dilatación, apertura y cierre. |
 | Otsu | Método que elige un umbral automático maximizando la separación entre dos clases. |
