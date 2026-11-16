@@ -1,0 +1,22 @@
+{
+  "imagen": "PVC1.JPG",
+  "dimensiones": [
+    256,
+    256
+  ],
+  "umbral_otsu_saturacion": 91.0,
+  "componentes_antes_de_seleccion": 1,
+  "area_hoja_px": 29453,
+  "porcentaje_hoja": 44.942,
+  "area_sintomas_px": 4560,
+  "porcentaje_sintomas_sobre_hoja": 15.482,
+  "sensibilidad_area_hoja_pct": {
+    "delta_-30": 45.819,
+    "delta_-20": 45.537,
+    "delta_-10": 45.265,
+    "delta_+0": 44.942,
+    "delta_+10": 44.646,
+    "delta_+20": 44.194,
+    "delta_+30": 43.527
+  }
+}
