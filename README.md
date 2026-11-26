@@ -34,6 +34,7 @@ Repositorio de prácticas de la asignatura **Sistemas de Visión Artificial**, M
 | 1 | Análisis comparativo de filtros paso bajo espaciales | [`01-filtros-paso-bajo/`](01-filtros-paso-bajo/) | `Reporte_Filtros_Paso_Bajo.pdf` | Pendiente de incluir | Reporte disponible |
 | 2 | Operaciones aritméticas y lógicas a nivel de píxel | [`02-operaciones-pixeles/`](02-operaciones-pixeles/) | `Reporte_Operaciones_Pixeles.pdf` | `practica_operaciones_pixeles.py` | Reporte y código disponibles |
 | 3 | Detección de baches mediante PDI | [`03-deteccion-baches/`](03-deteccion-baches/) | Documento en revisión | `pipeline/pothole_pipeline.py` | Pipeline, métricas y figuras disponibles |
+| 4 | Reconocimiento de suelos con y sin descriptores de Haralick | [`06-reconocimiento-suelos/`](06-reconocimiento-suelos/) | Reporte en preparación | `src/main.py` | En preparación |
 | — | Ejercicio: detección de esquinas (Harris) | [`Código Harris/`](Código%20Harris/) | Sin documento | Ejercicio | En preparación |
 
 ### Práctica 1. Análisis comparativo de filtros paso bajo espaciales
