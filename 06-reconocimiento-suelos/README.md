@@ -6,7 +6,9 @@
 
 > ¿Basta la textura de la superficie para distinguir cuatro tipos de suelo, o los propios píxeles ya contienen esa información?
 
-**Figura resumen:** pendiente de generación. Se agregará en `salidas/figuras/` tras la ejecución.
+![Exactitud media con IC 95 % por experimento](salidas/figuras/exactitud_ic95.png)
+
+*Figura 1. Exactitud media en prueba con IC 95 % t sobre las 5 semillas, por experimento.*
 
 ## Tabla de contenidos
 
@@ -43,12 +45,12 @@
 
 ## Resultados de un vistazo
 
-| Experimento | Dimensión | Exactitud media (IC 95 %) | F1 macro | Estado |
+| Experimento | Dimensión | Exactitud media [IC 95 % t] | Valor p de permutación | Estado |
 |---|---|---|---|---|
-| Sin Haralick (píxeles) | 4 096 → 95 % de varianza | Pendiente | Pendiente | Sin ejecutar |
-| Con Haralick (GLCM) | 78 | Pendiente | Pendiente | Sin ejecutar |
+| Sin Haralick (píxeles) | 4 096 → PCA 95 % de varianza | 0.8171 [0.7457, 0.8885] | 0.0099 | Ejecutado |
+| Con Haralick (GLCM) | 78 | 0.8514 [0.8245, 0.8783] | 0.0099 | Ejecutado |
 
-Los valores se completan con `salidas/resultados.json` después de la ejecución.
+Diferencia media (con − sin): 0.0343, IC 95 % t [−0.0558, 0.1244], valor p de la prueba t pareada = 0.3503. La diferencia no es estadísticamente significativa al nivel 0.05.
 
 ## Mapa de alcance
 
@@ -166,15 +168,72 @@ Si $p$ es grande, la exactitud observada no supera lo que se obtiene por azar y 
 
 ## Resultados
 
-*Sección pendiente de ejecución.* Se completará con `salidas/resultados.json` y las figuras de `salidas/figuras/`. Cada cifra incluirá su intervalo de confianza y la prueba estadística correspondiente.
+Ejecución: 347 imágenes finales (particiones `train` y `test` unidas tras la deduplicación exacta), 5 semillas por experimento, IC bootstrap con 2 000 remuestreos y prueba de permutación con 100 permutaciones. Fuente de todas las cifras: `salidas/resultados.json`.
 
-| Indicador | Sin Haralick | Con Haralick | Prueba |
-|---|---|---|---|
-| Exactitud media (IC 95 %) | Pendiente | Pendiente | IC t sobre semillas |
-| Diferencia media con − sin (IC 95 %) | — | Pendiente | t pareada |
-| McNemar (valor $p$ medio por semilla) | — | — | Pendiente |
-| Permutación (valor $p$) | Pendiente | Pendiente | Permutación |
-| Costo de extracción (ms por imagen) | Pendiente | Pendiente | Medición directa |
+### Tabla 1. Exactitud por semilla (IC 95 % bootstrap y C elegido)
+
+| Semilla | Sin Haralick: exactitud [IC 95 %] | C | Con Haralick: exactitud [IC 95 %] | C |
+|---|---|---|---|---|
+| 0 | 0.8857 [0.8143, 0.9571] | 100 | 0.8429 [0.7571, 0.9286] | 10 |
+| 1 | 0.7571 [0.6571, 0.8432] | 1 | 0.8571 [0.7714, 0.9286] | 100 |
+| 2 | 0.7857 [0.6857, 0.8857] | 1 | 0.8857 [0.8143, 0.9571] | 100 |
+| 3 | 0.8714 [0.7857, 0.9429] | 10 | 0.8286 [0.7429, 0.9143] | 10 |
+| 4 | 0.7857 [0.6857, 0.8714] | 100 | 0.8429 [0.7571, 0.9286] | 10 |
+
+### Tabla 2. Resumen por experimento
+
+| Experimento | Exactitud media [IC 95 % t sobre semillas] | Permutación: valor p |
+|---|---|---|
+| Sin Haralick | 0.8171 [0.7457, 0.8885] | 0.0099 |
+| Con Haralick | 0.8514 [0.8245, 0.8783] | 0.0099 |
+
+El valor mínimo posible de la prueba de permutación con 100 permutaciones es 1/101 ≈ 0.0099; ambos experimentos alcanzan ese mínimo, es decir, la exactitud observada supera a todas las 100 permutaciones.
+
+### Figura 2. Matrices de confusión (semilla base)
+
+| Sin Haralick | Con Haralick |
+|---|---|
+| ![Matriz de confusión sin Haralick](salidas/figuras/confusion_sin_haralick.png) | ![Matriz de confusión con Haralick](salidas/figuras/confusion_con_haralick.png) |
+
+### Figura 3. Distribuciones nulas de la prueba de permutación
+
+| Sin Haralick | Con Haralick |
+|---|---|
+| ![Permutación sin Haralick](salidas/figuras/permutacion_sin_haralick.png) | ![Permutación con Haralick](salidas/figuras/permutacion_con_haralick.png) |
+
+### Figura 4. Muestra de imágenes por clase
+
+![Muestra por clase](salidas/figuras/muestra_por_clase.png)
+
+### Comparación pareada
+
+Diferencia media (con − sin Haralick) = 0.0343, IC 95 % t [−0.0558, 0.1244]. Prueba t pareada sobre las 5 semillas: valor p = 0.3503. La diferencia no es estadísticamente significativa al nivel 0.05; el intervalo incluye valores negativos y positivos.
+
+### Tabla 3. Prueba de McNemar por semilla (sin Haralick frente a con Haralick)
+
+En cada semilla, $b$ son las muestras de prueba que acierta el experimento sin Haralick y falla el experimento con Haralick, y $c$ las contrarias. Con $b + c < 25$ se usa la prueba binomial exacta, por lo que no hay estadístico χ².
+
+| Semilla | $b$ (sin acierta, con falla) | $c$ (con acierta, sin falla) | Método | Valor p |
+|---|---|---|---|---|
+| 0 | 7 | 4 | binomial exacta | 0.5488 |
+| 1 | 4 | 11 | binomial exacta | 0.1185 |
+| 2 | 2 | 9 | binomial exacta | 0.0654 |
+| 3 | 7 | 4 | binomial exacta | 0.5488 |
+| 4 | 5 | 9 | binomial exacta | 0.4240 |
+
+Ninguna semilla es significativa al nivel 0.05. Se mantiene la misma lectura que la prueba t pareada: no hay evidencia de que una representación supere a la otra en exactitud.
+
+### Tabla 4. F1 por clase (media ± desviación sobre semillas) y F1 macro
+
+| Clase | F1 sin Haralick | F1 con Haralick |
+|---|---|---|
+| alluvial | 0.9098 ± 0.0370 | 0.9164 ± 0.0110 |
+| black | 0.9311 ± 0.0234 | 0.8646 ± 0.0344 |
+| cinder | 0.3359 ± 0.2708 | 0.7297 ± 0.1370 |
+| red | 0.6348 ± 0.1246 | 0.6962 ± 0.0581 |
+| **F1 macro (media sobre semillas)** | **0.7029** | **0.8017** |
+
+La diferencia en F1 macro (0.0988 a favor de la representación con Haralick) se explica sobre todo por la clase `cinder`, donde el F1 pasa de 0.3359 a 0.7297. En cambio, `black` mejora sin Haralick. El F1 macro no tiene intervalo de confianza en este análisis: el intervalo y la prueba estadística corresponden a la exactitud.
 
 ## Decisiones de diseño
 

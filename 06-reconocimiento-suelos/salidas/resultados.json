@@ -1,0 +1,245 @@
+{
+  "semillas": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "lado_imagen": 128,
+  "imagenes_brutas": 368,
+  "duplicados_exactos": 21,
+  "duplicados_con_clase_distinta": 1,
+  "clases": [
+    "alluvial",
+    "black",
+    "cinder",
+    "red"
+  ],
+  "imagenes_finales": 347,
+  "imagenes_por_clase": {
+    "alluvial": 194,
+    "black": 60,
+    "cinder": 30,
+    "red": 63
+  },
+  "costo_extraccion": {
+    "carga_s": 2.3017309160059085,
+    "sin_haralick_s": 0.014447499997913837,
+    "con_haralick_s": 0.6741119590005837,
+    "haralick_ms_por_imagen": 1.9426857608085986,
+    "dimension": {
+      "sin_haralick": 4096,
+      "con_haralick": 78
+    }
+  },
+  "casi_duplicados": {
+    "umbral_hamming": 4,
+    "pares": 969,
+    "pares_misma_clase": 969,
+    "pares_cruzados_entrenamiento_prueba": 353
+  },
+  "resumen": {
+    "sin_haralick": {
+      "nombre": "Sin Haralick (píxeles)",
+      "exactitud_media": 0.8171428571428571,
+      "ic95_t_inf": 0.745748554437771,
+      "ic95_t_sup": 0.8885371598479431,
+      "desv_std": 0.05749889084999459,
+      "f1_macro_media": 0.7029005853397783,
+      "cv_media": 0.8209090909090909,
+      "t_ajuste_media_s": 0.9155731165999896,
+      "t_inferencia_ms_media": 0.02252547430024216,
+      "por_semilla": [
+        {
+          "semilla": 0,
+          "exactitud": 0.8857142857142857,
+          "ic95": [
+            0.8142857142857143,
+            0.9571428571428572
+          ],
+          "C": 100.0,
+          "cv_media": 0.8087012987012987,
+          "cv_desv": 0.03134581785256225
+        },
+        {
+          "semilla": 1,
+          "exactitud": 0.7571428571428571,
+          "ic95": [
+            0.6571428571428571,
+            0.8432142857142838
+          ],
+          "C": 1.0,
+          "cv_media": 0.8338311688311688,
+          "cv_desv": 0.024519673122730214
+        },
+        {
+          "semilla": 2,
+          "exactitud": 0.7857142857142857,
+          "ic95": [
+            0.6857142857142857,
+            0.8857142857142857
+          ],
+          "C": 1.0,
+          "cv_media": 0.815909090909091,
+          "cv_desv": 0.020663231469480813
+        },
+        {
+          "semilla": 3,
+          "exactitud": 0.8714285714285714,
+          "ic95": [
+            0.7857142857142857,
+            0.9428571428571428
+          ],
+          "C": 10.0,
+          "cv_media": 0.8086363636363636,
+          "cv_desv": 0.024606534324352884
+        },
+        {
+          "semilla": 4,
+          "exactitud": 0.7857142857142857,
+          "ic95": [
+            0.6857142857142857,
+            0.8714285714285714
+          ],
+          "C": 100.0,
+          "cv_media": 0.8374675324675325,
+          "cv_desv": 0.03466194595740973
+        }
+      ]
+    },
+    "con_haralick": {
+      "nombre": "Con Haralick (GLCM)",
+      "exactitud_media": 0.8514285714285714,
+      "ic95_t_inf": 0.8245274758807366,
+      "ic95_t_sup": 0.8783296669764062,
+      "desv_std": 0.021665358411575828,
+      "f1_macro_media": 0.8017262457721529,
+      "cv_media": 0.835948051948052,
+      "t_ajuste_media_s": 0.044591574999503794,
+      "t_inferencia_ms_media": 0.014128097141760268,
+      "por_semilla": [
+        {
+          "semilla": 0,
+          "exactitud": 0.8428571428571429,
+          "ic95": [
+            0.7571428571428571,
+            0.9285714285714286
+          ],
+          "C": 10.0,
+          "cv_media": 0.8446103896103898,
+          "cv_desv": 0.0427574598293387
+        },
+        {
+          "semilla": 1,
+          "exactitud": 0.8571428571428571,
+          "ic95": [
+            0.7714285714285715,
+            0.9285714285714286
+          ],
+          "C": 100.0,
+          "cv_media": 0.8374025974025974,
+          "cv_desv": 0.023741204619009526
+        },
+        {
+          "semilla": 2,
+          "exactitud": 0.8857142857142857,
+          "ic95": [
+            0.8142857142857143,
+            0.9571428571428572
+          ],
+          "C": 100.0,
+          "cv_media": 0.8158441558441559,
+          "cv_desv": 0.028974721594564837
+        },
+        {
+          "semilla": 3,
+          "exactitud": 0.8285714285714286,
+          "ic95": [
+            0.7428571428571429,
+            0.9142857142857143
+          ],
+          "C": 10.0,
+          "cv_media": 0.8337662337662337,
+          "cv_desv": 0.050926646853657324
+        },
+        {
+          "semilla": 4,
+          "exactitud": 0.8428571428571429,
+          "ic95": [
+            0.7571428571428571,
+            0.9285714285714286
+          ],
+          "C": 10.0,
+          "cv_media": 0.8481168831168832,
+          "cv_desv": 0.0414122835709605
+        }
+      ]
+    }
+  },
+  "comparacion": {
+    "diferencia_media_con_menos_sin": 0.034285714285714294,
+    "ic95_diferencia": [
+      -0.05581244159750891,
+      0.1243838701689375
+    ],
+    "t_pareada_semillas": {
+      "t": 1.0565410875907495,
+      "p": 0.350307244781565,
+      "gl": 4
+    },
+    "mcnemar_por_semilla": [
+      {
+        "b": 7,
+        "c": 4,
+        "estadistico": NaN,
+        "p": 0.548828125,
+        "metodo": "binomial exacta"
+      },
+      {
+        "b": 4,
+        "c": 11,
+        "estadistico": NaN,
+        "p": 0.11846923828124999,
+        "metodo": "binomial exacta"
+      },
+      {
+        "b": 2,
+        "c": 9,
+        "estadistico": NaN,
+        "p": 0.0654296875,
+        "metodo": "binomial exacta"
+      },
+      {
+        "b": 7,
+        "c": 4,
+        "estadistico": NaN,
+        "p": 0.548828125,
+        "metodo": "binomial exacta"
+      },
+      {
+        "b": 5,
+        "c": 9,
+        "estadistico": NaN,
+        "p": 0.4239501953125,
+        "metodo": "binomial exacta"
+      }
+    ]
+  },
+  "permutacion": {
+    "sin_haralick": {
+      "exactitud_observada": 0.8857142857142857,
+      "nula_media": 0.5432857142857143,
+      "nula_p95": 0.6014285714285713,
+      "p_valor": 0.009900990099009901,
+      "n_permutaciones": 100
+    },
+    "con_haralick": {
+      "exactitud_observada": 0.8428571428571429,
+      "nula_media": 0.5579999999999999,
+      "nula_p95": 0.6142857142857143,
+      "p_valor": 0.009900990099009901,
+      "n_permutaciones": 100
+    }
+  }
+}
